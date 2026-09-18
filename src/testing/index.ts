@@ -32,7 +32,6 @@ export {
   fakeItems,
 } from './fake-api.ts';
 export { SeededRandom } from './seeded-random.ts';
-export { type StoreContractOptions, storeContractSuite } from './store-contract.ts';
 export {
   createTestLogger,
   type TestLogEntry,

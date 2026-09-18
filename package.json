@@ -1,6 +1,6 @@
 {
   "name": "watukuy",
-  "version": "1.0.0-rc.0",
+  "version": "1.0.0-rc.1",
   "description": "Webhooks for APIs that don't have them. Embeddable, zero-dependency change-data-capture engine for pull-only third-party APIs.",
   "keywords": [
     "polling",
@@ -89,7 +89,7 @@
     }
   },
   "scripts": {
-    "build": "tsdown",
+    "build": "tsdown && node scripts/check-entrypoints.mjs",
     "typecheck": "tsc -p tsconfig.json",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
@@ -98,7 +98,7 @@
     "test:coverage": "vitest run --coverage",
     "test:chaos": "WATUKUY_CHAOS_SEEDS=50 vitest run test/chaos",
     "check": "pnpm build && pnpm typecheck && pnpm lint && pnpm test",
-    "check:pack": "pnpm build && publint && attw --pack . --profile esm-only",
+    "check:pack": "pnpm build && pnpm check:entrypoints && publint && attw --pack . --profile esm-only",
     "size": "size-limit",
     "docs:api": "typedoc",
     "docs:site": "pnpm --dir docs-site build",
@@ -108,7 +108,8 @@
     "release": "pnpm build && changeset publish",
     "prepack": "pnpm build",
     "test:workerd": "pnpm --dir portability/workerd exec vitest run",
-    "test:bun": "bunx vitest run src/core src/scheduler src/cursor src/diff src/budget src/http src/validate src/testing --typecheck.enabled=false"
+    "test:bun": "bunx vitest run src/core src/scheduler src/cursor src/diff src/budget src/http src/validate src/testing --typecheck.enabled=false",
+    "check:entrypoints": "node scripts/check-entrypoints.mjs"
   },
   "peerDependencies": {
     "@nestjs/common": ">=11 <13",

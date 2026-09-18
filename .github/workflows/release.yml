@@ -33,6 +33,16 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_CONFIG_PROVENANCE: 'true'
+      - name: Keep `latest` on the newest pre-release until a stable version ships
+        if: steps.meta.outputs.published == 'false' && steps.meta.outputs.tag != 'latest'
+        run: |
+          CURRENT=$(npm view watukuy dist-tags.latest 2>/dev/null || echo "")
+          case "$CURRENT" in
+            ""|*-*) npm dist-tag add "watukuy@${{ steps.meta.outputs.version }}" latest ;;
+            *) echo "latest stays at stable $CURRENT" ;;
+          esac
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       - name: Verify (retries while the registry propagates)
         run: |
           for i in $(seq 1 12); do
