@@ -2,7 +2,7 @@ import { HttpError, type ProblemDetails } from '../core/errors.ts';
 import { cyrb53 } from '../core/hash.ts';
 import type { Clock } from '../core/ports.ts';
 
-export interface FakeApiOptions<Item extends Record<string, unknown>> {
+export interface FakeApiOptions<Item extends object> {
   /** Time source for `timestampField` bumps, latency, and the `at` field of {@link FakeApi.log}. */
   clock: Clock;
   /** Stable id of an item. Also the tie-breaker and default sort key of every listing. */
@@ -201,7 +201,7 @@ function problem(status: number, title: string, detail?: string): RouteResult {
  * res.status;                       // 429
  * res.headers.get('retry-after');   // '5'
  */
-export class FakeApi<Item extends Record<string, unknown>> {
+export class FakeApi<Item extends object> {
   /** Base URL served by {@link fetchImpl}, without trailing slash. */
   readonly baseUrl: string;
   /** Every request served so far. Cleared by {@link resetStats}. */
@@ -315,7 +315,7 @@ export class FakeApi<Item extends Record<string, unknown>> {
     this.#items.clear();
     const iso = this.#iso();
     for (const item of items) {
-      const copy: Record<string, unknown> = { ...item };
+      const copy: Record<string, unknown> = { ...(item as Record<string, unknown>) };
       if (this.#tsField !== undefined && copy[this.#tsField] === undefined) {
         copy[this.#tsField] = iso;
       }
@@ -493,7 +493,7 @@ export class FakeApi<Item extends Record<string, unknown>> {
 
   #stamp(item: Item): Item {
     if (this.#tsField === undefined) return item;
-    const copy: Record<string, unknown> = { ...item };
+    const copy: Record<string, unknown> = { ...(item as Record<string, unknown>) };
     copy[this.#tsField] = this.#iso();
     return copy as Item;
   }
@@ -517,7 +517,7 @@ export class FakeApi<Item extends Record<string, unknown>> {
       const field = this.#tsField as string;
       this.#byTs = [...this.#items.entries()]
         .map(([id, item]): TsRow<Item> => {
-          const raw = item[field];
+          const raw = (item as Record<string, unknown>)[field];
           const ts =
             typeof raw === 'number' ? raw : typeof raw === 'string' ? Date.parse(raw) : Number.NaN;
           return { id, ts: Number.isNaN(ts) ? Number.NEGATIVE_INFINITY : ts, item };
