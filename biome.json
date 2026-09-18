@@ -11,12 +11,13 @@
     "lineWidth": 100
   },
   "javascript": {
-    "formatter": { "quoteStyle": "single", "trailingCommas": "all", "semicolons": "always" }
+    "formatter": { "quoteStyle": "single", "trailingCommas": "all", "semicolons": "always" },
+    "parser": { "unsafeParameterDecoratorsEnabled": true }
   },
   "linter": {
     "enabled": true,
     "rules": {
-      "recommended": true,
+      "preset": "recommended",
       "suspicious": { "noExplicitAny": "error", "noConsole": "off" },
       "style": {
         "noNonNullAssertion": "off",
