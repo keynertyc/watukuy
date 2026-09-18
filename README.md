@@ -3,12 +3,12 @@
 > **Webhooks for APIs that don't have them.**
 > Change data capture for third-party APIs. Embeddable, zero dependencies, runs anywhere.
 
-[![npm version](https://img.shields.io/npm/v/watukuy.svg)](https://www.npmjs.com/package/watukuy)
+[![npm version](https://img.shields.io/npm/v/watukuy)](https://www.npmjs.com/package/watukuy)
 [![CI](https://github.com/keynertyc/watukuy/actions/workflows/ci.yml/badge.svg)](https://github.com/keynertyc/watukuy/actions/workflows/ci.yml)
-[![coverage](https://img.shields.io/codecov/c/github/keynertyc/watukuy)](https://codecov.io/gh/keynertyc/watukuy)
+[![coverage](https://img.shields.io/endpoint?url=https%3A%2F%2Fkeynertyc.github.io%2Fwatukuy%2Fbadges%2Fcoverage.json)](https://github.com/keynertyc/watukuy/actions/workflows/ci.yml)
 [![provenance](https://img.shields.io/badge/npm-provenance-blue)](https://www.npmjs.com/package/watukuy#provenance)
-[![bundle size](https://img.shields.io/bundlephobia/minzip/watukuy)](https://bundlephobia.com/package/watukuy)
-[![license](https://img.shields.io/npm/l/watukuy.svg)](./LICENSE)
+[![core size](https://img.shields.io/endpoint?url=https%3A%2F%2Fkeynertyc.github.io%2Fwatukuy%2Fbadges%2Fsize.json)](https://github.com/keynertyc/watukuy/blob/main/.size-limit.json)
+[![license](https://img.shields.io/github/license/keynertyc/watukuy)](./LICENSE)
 
 [Español](./README.es.md)
 

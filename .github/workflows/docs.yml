@@ -18,8 +18,14 @@ on:
       - 'docs-site/**'
       - '.github/workflows/docs.yml'
   workflow_dispatch:
+  # Rebuild after every green CI run on main so the coverage and size badges stay current.
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
 permissions:
   contents: read
+  actions: read
 concurrency:
   group: docs-${{ github.ref }}
   cancel-in-progress: true
@@ -38,12 +44,25 @@ jobs:
           # https://keynertyc.github.io/watukuy — override both for a custom domain (DOCS_BASE=/).
           DOCS_SITE: https://keynertyc.github.io
           DOCS_BASE: /watukuy
+      - name: Badges from the latest green CI run on main (coverage, core size)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set +e
+          RUN=$(gh run list -R "$GITHUB_REPOSITORY" --workflow CI --branch main --status success --limit 1 --json databaseId -q '.[0].databaseId')
+          if [ -n "$RUN" ]; then
+            gh run download "$RUN" -R "$GITHUB_REPOSITORY" -n coverage -D /tmp/ci-coverage
+            gh run download "$RUN" -R "$GITHUB_REPOSITORY" -n size -D /tmp/ci-size
+          fi
+          set -e
+          node scripts/make-badges.mjs /tmp/ci-coverage/coverage-summary.json /tmp/ci-size/size-limit.json docs-site/dist/badges
+          cat docs-site/dist/badges/coverage.json docs-site/dist/badges/size.json
       - uses: actions/upload-pages-artifact@v3
         with: { path: docs-site/dist }
   deploy:
     name: deploy to GitHub Pages
     # Pages needs a public repository (or a paid plan); the build job still validates the site.
-    if: github.event_name != 'pull_request' && github.event.repository.private == false
+    if: github.event_name != 'pull_request' && github.event.repository.private == false && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success')
     needs: build
     runs-on: ubuntu-latest
     permissions:

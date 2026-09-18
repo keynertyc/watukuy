@@ -85,4 +85,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - run: pnpm size
+      - run: pnpm exec size-limit --json > size-limit.json
+      - uses: actions/upload-artifact@v4
+        with: { name: size, path: size-limit.json }
       - run: npm pack --dry-run
