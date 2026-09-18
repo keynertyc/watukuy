@@ -5,6 +5,7 @@ import type { HttpClient } from './http-types.ts';
 import type { Logger } from './ports.ts';
 import type { StandardSchemaV1 } from './standard-schema.ts';
 
+/** Which loop produced an event or is running: the live incremental loop, a backfill, a reconcile sweep, or a replay. */
 export type Lane = 'live' | 'backfill' | 'reconcile' | 'replay';
 
 /** One tenant / account / shard of a poller (PLAN §5.8). */
@@ -27,6 +28,7 @@ export interface Page<Item = unknown> {
   hasMore?: boolean | undefined;
 }
 
+/** Argument of a poller `fetch` function (PLAN §4.7). */
 export interface FetchContext<Cursor, PData = undefined> {
   cursor: Cursor;
   /** 1-based request index within the current cycle. */
@@ -41,10 +43,12 @@ export interface FetchContext<Cursor, PData = undefined> {
   logger: Logger;
 }
 
+/** A poller `fetch` function: returns one page per call, or an async iterable of pages. */
 export type FetchFn<Item, Cursor, PData> = (
   ctx: FetchContext<Cursor, PData>,
 ) => Promise<Page<Item>> | AsyncIterable<Page<Item>>;
 
+/** Exponential backoff parameters. */
 export interface BackoffConfig {
   /** @default '1s' */
   base?: Duration | undefined;
@@ -54,6 +58,7 @@ export interface BackoffConfig {
   max?: Duration | undefined;
 }
 
+/** Polling cadence and adaptation (PLAN §5.6). */
 export interface ScheduleConfig {
   /** Shortest interval between cycles. */
   min: Duration;
@@ -70,6 +75,7 @@ export interface ScheduleConfig {
   backoff?: BackoffConfig | undefined;
 }
 
+/** Circuit breaker thresholds (PLAN §5.6). */
 export interface CircuitConfig {
   /** Consecutive failures that open the circuit. @default 5 */
   failures?: number | undefined;
@@ -77,12 +83,14 @@ export interface CircuitConfig {
   probeEvery?: Duration | undefined;
 }
 
+/** Delivery retry policy (PLAN §5.4). */
 export interface RetryConfig {
   /** Total delivery attempts before the event is poison. @default 5 */
   attempts?: number | undefined;
   backoff?: BackoffConfig | undefined;
 }
 
+/** What happens when delivery attempts are exhausted (PLAN §5.4). */
 export interface PoisonConfig {
   /**
    * `'park'` moves the event to the parked table; `'halt'` opens the poller circuit instead.
@@ -96,6 +104,7 @@ export interface PoisonConfig {
   holdKey?: boolean | undefined;
 }
 
+/** Delivery semantics for a poller: ordering, concurrency, retries, poison handling, ack mode. */
 export interface DeliveryConfig<Item> {
   /** Events with equal keys are delivered in order; different keys may run concurrently. @default event.subject */
   orderingKey?: ((event: WatukuyEvent<Item>) => string) | undefined;
@@ -107,12 +116,14 @@ export interface DeliveryConfig<Item> {
   ackMode?: 'auto' | 'manual' | undefined;
 }
 
+/** Periodic full-listing sweep that detects deletes for incremental strategies (PLAN §5.2). */
 export interface ReconcileConfig<Item, PData> {
   every: Duration;
   /** Full listing, paged with `ctx.page`. */
   fetch: FetchFn<Item, PageCursor, PData>;
 }
 
+/** Event log retention; enables `engine.replay()`. */
 export interface LogConfig {
   retention: Duration;
 }
@@ -174,6 +185,7 @@ export interface PollerConfigWithoutSchema<Name extends string, Item, C extends 
   fetch: FetchFn<Item, CursorValue<C>, PData>;
 }
 
+/** Either `definePoller` input shape. */
 export type PollerConfig<Name extends string, Item, C extends CursorConfig, PData> =
   | PollerConfigWithSchema<Name, StandardSchemaV1<unknown, Item>, C, PData>
   | PollerConfigWithoutSchema<Name, Item, C, PData>;
@@ -234,10 +246,13 @@ export interface PollerDefinition<
   readonly '~types'?: { item: Item; cursor: CursorValue<C>; partition: PData };
 }
 
+/** A `PollerDefinition` with erased type parameters. */
 export type AnyPollerDefinition = PollerDefinition<string, unknown, CursorConfig, unknown>;
 
+/** Extracts the item type from a `PollerDefinition`. */
 export type ItemOf<P> =
   P extends PollerDefinition<string, infer I, CursorConfig, unknown> ? I : never;
+/** Extracts the partition data type from a `PollerDefinition`. */
 export type PartitionDataOf<P> =
   P extends PollerDefinition<string, unknown, CursorConfig, infer D> ? D : never;
 

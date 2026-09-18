@@ -63,6 +63,7 @@ interface AttemptInfo {
   nextAttemptAt: number | null;
 }
 
+/** Partial poller state accepted by `saveState` / `commitPoll`. */
 type StatePatch = Partial<Omit<PollerState, 'createdAt'>>;
 
 const LOG_PAGE = 500;

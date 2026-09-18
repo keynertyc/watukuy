@@ -11,6 +11,7 @@ import type {
   StateStore,
 } from './store-types.ts';
 
+/** A named, shared rate budget declared in `createWatukuy({ budgets })` (PLAN §5.7). */
 export interface BudgetConfig {
   requests: number;
   per: Duration;
@@ -22,8 +23,10 @@ export interface BudgetConfig {
   maxWait?: Duration | undefined;
 }
 
+/** The `pollers` object passed to `createWatukuy`: keys must equal each poller name. */
 export type PollerMap = Record<string, AnyPollerDefinition>;
 
+/** Options for `createWatukuy()` (PLAN §4.4). */
 export interface EngineOptions<P extends PollerMap> {
   store: StateStore;
   pollers: P;
@@ -44,8 +47,10 @@ export interface EngineOptions<P extends PollerMap> {
   dispatchBatchSize?: number | undefined;
 }
 
+/** Lifecycle state of the engine. */
 export type EngineStatus = 'idle' | 'running' | 'stopping' | 'stopped';
 
+/** Options for `engine.stop()`. */
 export interface StopOptions {
   /** Wait for in-flight handlers. @default true */
   drain?: boolean | undefined;
@@ -53,6 +58,7 @@ export interface StopOptions {
   timeout?: Duration | undefined;
 }
 
+/** Options for `engine.tick()` (serverless mode). */
 export interface TickOptions {
   /** Cooperative time budget for the whole pass. @default none */
   maxDuration?: Duration | undefined;
@@ -60,6 +66,7 @@ export interface TickOptions {
   only?: string[] | undefined;
 }
 
+/** Outcome of one lane run during a tick. */
 export interface TickPollResult {
   poller: string;
   partition: string;
@@ -71,6 +78,7 @@ export interface TickPollResult {
   error: SerializedError | null;
 }
 
+/** Summary returned by `engine.tick()`. */
 export interface TickResult {
   polled: TickPollResult[];
   /** Total events delivered during this tick, including leftovers drained before any poll. */
@@ -83,6 +91,7 @@ export interface TickResult {
   timedOut: boolean;
 }
 
+/** Options for `engine.backfill()` (PLAN §5.9). */
 export interface BackfillOptions {
   /** Serialized-cursor-compatible start (the API's own string, or `null` for the beginning). */
   from: string | null;
@@ -93,16 +102,19 @@ export interface BackfillOptions {
   force?: boolean | undefined;
 }
 
+/** Options for `engine.replay()`; requires `log` on the poller. */
 export interface ReplayOptions {
   from: string | number | Date;
   to?: string | number | Date | undefined;
   partition?: string | undefined;
 }
 
+/** Result of `engine.replay()`. */
 export interface ReplayResult {
   replayed: number;
 }
 
+/** Options for `engine.resetCursor()`. */
 export interface ResetCursorOptions {
   partition?: string | undefined;
   /** New serialized cursor, or `null` for the strategy's initial. */
@@ -111,6 +123,7 @@ export interface ResetCursorOptions {
   clearSnapshot?: boolean | undefined;
 }
 
+/** Health and state of one `(poller, partition)` as reported by `engine.inspect()`. */
 export interface PollerInspect {
   poller: string;
   partition: string;
@@ -126,6 +139,7 @@ export interface PollerInspect {
   lagMs: number | null;
 }
 
+/** Result of `engine.inspect()`; serializable for health endpoints. */
 export interface InspectReport {
   instanceId: string;
   status: EngineStatus;
@@ -133,6 +147,7 @@ export interface InspectReport {
   pollers: PollerInspect[];
 }
 
+/** Options for `engine.subscribe()`. */
 export interface SubscribeOptions {
   signal?: AbortSignal | undefined;
 }

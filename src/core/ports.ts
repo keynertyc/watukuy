@@ -24,6 +24,7 @@ export interface Logger {
   error(message: string, meta?: Record<string, unknown>): void;
 }
 
+/** Common fields passed to every hook: the key, the lane, and the instance id. */
 export interface HookContext extends PKey {
   lane: Lane;
   instanceId: string;

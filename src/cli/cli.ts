@@ -7,6 +7,7 @@ import { ConfigError, WatukuyError } from '../core/errors.ts';
 import type { StateStore } from '../core/store-types.ts';
 import { VERSION } from '../core/version.ts';
 
+/** I/O and environment hooks for `runCli`, injectable for tests and embedding. */
 export interface CliIo {
   stdout: (line: string) => void;
   stderr: (line: string) => void;

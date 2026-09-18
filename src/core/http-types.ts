@@ -1,8 +1,10 @@
 import type { Duration } from './duration.ts';
 import type { RateLimitInfo } from './errors.ts';
 
+/** A query-string value accepted by the HTTP helper; `null`/`undefined` entries are skipped. */
 export type QueryValue = string | number | boolean | null | undefined;
 
+/** Per-request options for `ctx.http.get()` / `ctx.http.request()` (PLAN §5.11). */
 export interface HttpRequestOptions {
   query?: Record<string, QueryValue | QueryValue[]> | undefined;
   headers?: Record<string, string> | undefined;
@@ -19,6 +21,7 @@ export interface HttpRequestOptions {
   throwOnError?: boolean | undefined;
 }
 
+/** Response wrapper returned by the HTTP helper. Body reads are cached, so `json()` and `text()` may both be called. */
 export interface HttpResponse {
   status: number;
   ok: boolean;

@@ -1,5 +1,6 @@
 import type { Logger } from '../core/ports.ts';
 
+/** Log level recorded by the test logger. */
 export type TestLogLevel = 'debug' | 'info' | 'warn' | 'error';
 
 /** One recorded log call. `meta` is present only when the caller passed it. */

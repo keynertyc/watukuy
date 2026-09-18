@@ -2,11 +2,13 @@ import type { RateLimitInfo, SerializedError } from './errors.ts';
 import type { WatukuyEvent } from './event.ts';
 import type { Lane, PollSummary } from './poller-types.ts';
 
+/** Store key: one poller partition. */
 export interface PKey {
   poller: string;
   partition: string;
 }
 
+/** Ownership of a `(poller, partition)` by one engine instance (PLAN §5.5). */
 export interface Lease {
   owner: string;
   /** Monotonic fencing token; every write carries it and stores reject stale values (PLAN §5.5). */
@@ -14,8 +16,10 @@ export interface Lease {
   expiresAt: number;
 }
 
+/** Circuit breaker state of a poller partition. */
 export type CircuitState = 'closed' | 'open' | 'half-open';
 
+/** Persisted scheduler state of a poller partition (PLAN §5.6). */
 export interface ScheduleState {
   nextDueAt: number | null;
   intervalMs: number | null;
@@ -30,6 +34,7 @@ export interface ScheduleState {
   lastError: SerializedError | null;
 }
 
+/** Persisted cursor of one lane (live, backfill, reconcile). */
 export interface LaneCursor {
   /** Serialized cursor (JSON). `null` before the first poll. */
   cursor: string | null;
@@ -43,6 +48,7 @@ export interface LaneCursor {
   force?: boolean;
 }
 
+/** Everything persisted per `(poller, partition)` besides items, outbox, parked rows, and validators. */
 export interface PollerState {
   lanes: Partial<Record<Lane, LaneCursor>>;
   schedule: ScheduleState;
@@ -55,6 +61,7 @@ export interface PollerState {
   updatedAt: number;
 }
 
+/** Snapshot row for one item identity: version, fingerprint hash, and optionally the payload. */
 export interface ItemRow {
   identity: string;
   version: string | null;
@@ -64,8 +71,10 @@ export interface ItemRow {
   seenAt: number;
 }
 
+/** Delivery status of an outbox row. Stores may delete delivered rows instead of marking them. */
 export type OutboxStatus = 'pending' | 'delivered';
 
+/** An event waiting for delivery, committed atomically with the poll that produced it (PLAN G4). */
 export interface OutboxRow {
   eventId: string;
   sequence: number;
@@ -77,11 +86,13 @@ export interface OutboxRow {
   createdAt: number;
 }
 
+/** Error details kept with a parked row, including the attempt history. */
 export interface ParkedError extends SerializedError {
   history?: Array<{ at: number; message: string }>;
   issues?: ReadonlyArray<{ message: string; path?: ReadonlyArray<PropertyKey> }>;
 }
 
+/** A poison event or a quarantined invalid item (PLAN §5.4, §5.12). */
 export interface ParkedRow {
   id: string;
   kind: 'poison' | 'invalid';
@@ -96,12 +107,14 @@ export interface ParkedRow {
   holdKey: string | null;
 }
 
+/** HTTP validators (`ETag`, `Last-Modified`) stored per URL for conditional requests. */
 export interface Validator {
   etag: string | null;
   lastModified: string | null;
   storedAt: number;
 }
 
+/** An entry of the optional event log used by `engine.replay()`. */
 export interface LoggedEvent {
   sequence: number;
   event: WatukuyEvent<unknown>;
@@ -120,6 +133,7 @@ export interface CommitBatch {
   parked?: ParkedRow[] | undefined;
 }
 
+/** What a `StateStore` implementation supports. */
 export interface StoreCapabilities {
   transactions: boolean;
   log: boolean;
@@ -196,6 +210,7 @@ export interface StateStore {
   pruneLog(key: PKey, olderThan: number): Promise<number>;
 }
 
+/** Resolved token-bucket policy: `requests` per `perMs` with a `burst` capacity. */
 export interface BudgetPolicy {
   requests: number;
   /** Window in milliseconds. */

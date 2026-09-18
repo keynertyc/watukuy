@@ -37,6 +37,7 @@ export function definePoller<
 >(
   config: PollerConfigWithSchema<Name, S, C, PData>,
 ): PollerDefinition<Name, StandardSchemaV1.InferOutput<S>, C, PData>;
+/** Without a schema: the item type comes from the `identity` parameter and `fetch` must return typed items. */
 export function definePoller<
   const Name extends string,
   Item,

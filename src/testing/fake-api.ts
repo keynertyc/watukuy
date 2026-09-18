@@ -2,6 +2,7 @@ import { HttpError, type ProblemDetails } from '../core/errors.ts';
 import { cyrb53 } from '../core/hash.ts';
 import type { Clock } from '../core/ports.ts';
 
+/** Constructor options for `FakeApi`. */
 export interface FakeApiOptions<Item extends object> {
   /** Time source for `timestampField` bumps, latency, and the `at` field of {@link FakeApi.log}. */
   clock: Clock;
@@ -41,6 +42,7 @@ export type FakeFault =
 /** Header family emitted by {@link FakeApi.setRateLimit}. */
 export type FakeRateLimitStyle = 'ietf' | 'legacy' | 'vendor';
 
+/** Rate-limit headers the fake API adds to every `fetchImpl()` response. */
 export interface FakeRateLimit {
   /** Requests allowed per window. */
   limit: number;
@@ -70,11 +72,13 @@ export interface FakeApiLogEntry {
   status: number;
 }
 
+/** Result of `FakeApi.listSince()`. */
 export interface FakeSinceResult<Item> {
   items: Item[];
   hasMore: boolean;
 }
 
+/** Result of `FakeApi.listPage()`. */
 export interface FakePageResult<Item> {
   items: Item[];
   hasMore: boolean;
@@ -82,6 +86,7 @@ export interface FakePageResult<Item> {
   pages: number;
 }
 
+/** Result of `FakeApi.listToken()`. */
 export interface FakeTokenResult<Item> {
   items: Item[];
   /** Opaque cursor for the next page, `null` when exhausted. */

@@ -44,6 +44,7 @@ export interface SqliteStoreOptions {
 }
 
 type Row = Record<string, SQLOutputValue>;
+/** Partial poller state accepted by `saveState` / `commitPoll`. */
 type StatePatch = Partial<Omit<PollerState, 'createdAt'>>;
 type SqlText = ReturnType<typeof buildSql>;
 

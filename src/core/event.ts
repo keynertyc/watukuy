@@ -1,6 +1,7 @@
 import type { Lane, Partition } from './poller-types.ts';
 import type { Logger } from './ports.ts';
 
+/** Kind of change an event describes. */
 export type EventType = 'created' | 'updated' | 'deleted';
 
 /** The normalized change event (PLAN §4.6). Convert with `toCloudEvent()` for interop. */
@@ -30,6 +31,7 @@ export interface WatukuyEvent<Item = unknown> {
   attempt: number;
 }
 
+/** Second argument of an event handler. */
 export interface HandlerContext {
   signal: AbortSignal;
   logger: Logger;
@@ -39,6 +41,7 @@ export interface HandlerContext {
   ack(): void;
 }
 
+/** A registered event handler (`engine.on`). */
 export type EventHandler<Item> = (
   event: WatukuyEvent<Item>,
   ctx: HandlerContext,

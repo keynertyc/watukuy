@@ -77,6 +77,7 @@ export const KILL_POINTS: readonly KillPoint[] = [
 /** Cursor strategies the harness knows how to drive against the {@link FakeApi}. */
 export type ChaosStrategy = 'timestamp' | 'snapshotDiff' | 'token' | 'page';
 
+/** Options for `runChaos()` (PLAN §9.4). */
 export interface ChaosOptions {
   seed: number;
   /**
@@ -121,6 +122,7 @@ export interface ChaosResolvedOptions {
   retainPayload: boolean;
 }
 
+/** Result of `runChaos()`; empty `violations` means every guarantee held. */
 export interface ChaosReport {
   seed: number;
   steps: number;

@@ -80,6 +80,7 @@ interface Driver {
 }
 
 type Row = Record<string, unknown>;
+/** Partial poller state accepted by `saveState` / `commitPoll`. */
 type StatePatch = Partial<Omit<PollerState, 'createdAt'>>;
 type PgSql = ReturnType<typeof buildSql>;
 

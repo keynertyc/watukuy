@@ -40,6 +40,7 @@ export interface TimestampCursorConfig {
   format?: ((epochMs: number, sample: string | null) => string) | undefined;
 }
 
+/** Runtime cursor of the `timestamp` strategy: the watermark plus the tie-break value. */
 export interface TimestampCursor {
   /** The API's own string for the watermark; never re-serialized from a Date. */
   value: string | null;
@@ -53,6 +54,7 @@ export interface TokenCursorConfig {
   initial: string | null;
 }
 
+/** Runtime cursor of the `token` strategy. */
 export interface TokenCursor {
   value: string | null;
 }
@@ -64,6 +66,7 @@ export interface PageCursorConfig {
   initial?: number | undefined;
 }
 
+/** Runtime cursor of the `page` strategy (1-based unless `initial` says otherwise). */
 export interface PageCursor {
   page: number;
 }
@@ -91,6 +94,7 @@ export interface CustomCursorConfig<C = unknown> {
   deserialize?(raw: string): C;
 }
 
+/** Union of every cursor strategy configuration accepted by `definePoller`. */
 export type CursorConfig =
   | TimestampCursorConfig
   | TokenCursorConfig
@@ -98,6 +102,7 @@ export type CursorConfig =
   | SnapshotDiffCursorConfig
   | CustomCursorConfig<unknown>;
 
+/** The `strategy` discriminator of a `CursorConfig`. */
 export type CursorStrategyName = CursorConfig['strategy'];
 
 /** The runtime cursor value seen by `fetch`, derived from the strategy. */

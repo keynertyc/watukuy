@@ -178,6 +178,7 @@ export interface SerializedError {
   cause?: SerializedError;
 }
 
+/** Convert any thrown value into a JSON-friendly `SerializedError` (stack, code, HTTP status, nested causes up to depth 3). */
 export function serializeError(err: unknown, depth = 0): SerializedError {
   if (err instanceof Error) {
     const out: SerializedError = { name: err.name, message: err.message };
