@@ -305,6 +305,7 @@ sequenceDiagram
 1. A cycle first drains any pending outbox from a previous crash before fetching anything (G1, G9).
 2. `commitPoll` is atomic. For `timestamp`/`token`/`page` it commits per page. For `snapshotDiff` it commits once after the last page (all pages are needed to detect deletes); memory is bounded by identity plus hash, not payloads, unless `retain: 'payload'`.
 3. The store rejects any write whose epoch is not the current lease epoch (G5). On rejection the runner aborts the cycle and discards local work.
+3a. The current schedule state travels inside every `commitPoll` state patch, so a crash between the first commit and the end-of-cycle schedule save never leaves a row without a due time. Defensively, `isDue` treats `nextDueAt: null` as due. (Found by the chaos suite, seed 2.)
 4. `hasMore: true` makes the runner continue immediately with the derived cursor ("catch-up mode") until `maxPagesPerCycle`, then yields to the scheduler.
 5. Kill points K1..K7 (before lease, after fetch, after commit before dispatch, mid-dispatch, after ack before schedule save, after schedule save, during release) are each exercised by the chaos suite.
 
@@ -316,7 +317,7 @@ sequenceDiagram
 | `token` | opaque `next` cursor | `value \| null` | page's `cursor`; `null` = caught up | via `reconcile` |
 | `page` | page numbers | `page` | `page + 1` while `hasMore`; resets to 1 when done | via `reconcile` |
 | `snapshotDiff` | nothing | none | n/a; full scan each cycle | **built in** |
-| `custom` | anything | user-defined | user `advance(page, cursor)` | via `reconcile` |
+| `custom` | anything | user-defined | user `advance({ cursor, items, pageCursor, hasMore })`; build with `customCursor()` for full inference | via `reconcile` |
 
 **Timestamp details.** Items re-seen because of `overlap` are suppressed by the identity→version map (G2). Cursor `value` is stored as the server's own string, never re-serialized from a `Date`. Ties: the runner requests `>= value` and the store guarantees no skip because `tieBreak` continues past the last seen id. If the API cannot tie-break, set `tieBreak: null` and rely on `overlap` (documented trade-off).
 
@@ -351,7 +352,7 @@ sequenceDiagram
 * **Proactive rate-limit pacing:** when the HTTP helper reports `remaining` and `reset` from `RateLimit` headers, the scheduler paces so remaining requests last until reset, before any 429.
 * **429 / `Retry-After`:** sleep exactly as instructed (seconds or HTTP-date), charge the budget, do not count as a failure.
 * **Errors:** exponential backoff `base 1s, factor 2, max 10m` with full jitter. After `circuit.failures` consecutive failures the circuit opens; half-open probe every `circuit.probeEvery`; closes on success. Circuit state persists in the store so `tick()` invocations respect it.
-* Schedule state (next due, interval, circuit) is persisted per `(poller, partition)`, so daemon and `tick()` modes share it and multiple instances agree.
+* Schedule state (next due, interval, circuit) is persisted per `(poller, partition)`, so daemon and `tick()` modes share it and multiple instances agree. A `null` `nextDueAt` (row created by a commit that crashed before the first schedule save) is due immediately.
 
 ### 5.7 Rate budgets
 
@@ -447,7 +448,7 @@ interface Random { next(): number; }   // [0,1)
 
 **SQL schema (Postgres and SQLite, prefixed `watukuy_`):** `pollers` (key, state json, lease_owner, lease_epoch, lease_expires_at), `items` (poller, partition, identity, version, hash, schema_version, payload nullable, seen_at, PK on first three), `outbox` (poller, partition, seq, event_id unique, event json, status, attempts, created_at, PK on first three), `parked` (id, poller, partition, event json, error json, kind `poison|invalid`, parked_at), `validators` (poller, partition, url_hash, etag, last_modified), `log` (poller, partition, seq, event json, created_at; optional). Migrations are idempotent SQL files shipped in the package and applied by `store.migrate()` or `npx watukuy migrate`.
 
-**Redis layout:** hashes per key for state; sorted sets for outbox by seq; hash for items; Lua scripts for `acquireLease`, `commitPoll` (epoch check plus multi-key write), and token bucket. Redis store declares `capabilities.transactions: true` via Lua.
+**Redis layout:** per-key hashes for state (one field per top-level state property, so patches are plain `HSET`s and no JSON is decoded in Lua), lease/meta hash, items hash, outbox sorted set (pending ids by seq) plus row/attempt/error hashes, parked hash plus a hold-key hash, validators hash, log sorted set, and a global keys set. Every fenced write is one Lua script that checks owner/epoch first; `commitPoll` is a single script. The token bucket is a Lua script that mirrors the in-memory math exactly. Works with ioredis and node-redis (RESP2 and RESP3) through a small adapter. Redis Cluster is not supported in 1.0 (multi-slot scripts); see ROADMAP.
 
 ## 7. Architecture and module layout
 
@@ -497,16 +498,16 @@ flowchart LR
 
 ### 8.1 NestJS adapter (`watukuy/nestjs`), built against NestJS 12
 
-* `WatukuyModule.forRoot(options)` / `forRootAsync({ useFactory, inject })`. Pollers registered as providers via `WatukuyModule.forFeature([orders])` or discovered by `@Poller()` decorator on provider classes that return a definition.
+* `WatukuyModule.forRoot(options)` / `forRootAsync({ useFactory, inject })`. Pollers are plain `definePoller()` values passed to `forRoot` (array or keyed object) or contributed from feature modules via `WatukuyModule.forFeature([orders])`; contributions are merged and de-duplicated at bootstrap. (No `@Poller()` class decorator: plain values keep type inference intact.)
 * `@OnWatukuyEvent('orders')` method decorator; explorer wires handlers at `onApplicationBootstrap`; engine `start()` there and `stop({ drain })` on `beforeApplicationShutdown`. Manual mode option for `tick()` in Nest cron.
-* `WatukuyHealthIndicator` for `@nestjs/terminus` using `inspect()`: unhealthy on open circuit, lease lost, or lag above threshold.
+* `WatukuyHealthIndicator` for `@nestjs/terminus` using `inspect()`: unhealthy on open circuit, lag above threshold, or engine not running in daemon mode. It returns a structurally identical `HealthIndicatorResult` without importing terminus at runtime, so `watukuy/nestjs` loads even when terminus is not installed.
 * Standard Schema support aligns with Nest 12's validation; pollers may reuse the app's Zod/Valibot schemas. Adapter checks integration with Nest 12's `@nestjs/observe` SDK during M9 and documents it.
 * Peer range `@nestjs/common >=11 <13`; tests run against 12 and 11.
 
 ### 8.2 Sinks (`watukuy/sinks`)
 
 * `webhookSink({ url, secret, headers })`: POSTs `toCloudEvent(event)`, signed per the Standard Webhooks spec (`webhook-id`, `webhook-timestamp`, `webhook-signature` with `v1,<base64 HMAC-SHA256>` over `${id}.${timestamp}.${body}`). Retries come from the dispatcher (§5.4). This literally delivers the tagline.
-* `bullmqSink(queue)`, `sqsSink(client, queueUrl)`, `kafkaSink(producer, topic)`: use `event.id` as job id / dedup id / key, and `orderingKey` as partition key where supported. Clients are injected; no client dependencies.
+* `bullmqSink(queue)`, `sqsSink(client, { queueUrl, createCommand })`, `kafkaSink(producer, { topic })`: use `event.id` as job id / dedup id, `event.subject` (or a `messageGroupId` function mirroring `delivery.orderingKey`) as the FIFO group / partition key. Clients are injected through structural interfaces verified against the real SDK types; no client dependencies. Kafka follows the CloudEvents Kafka binding (binary mode by default).
 
 ### 8.3 OpenTelemetry (`watukuy/otel`): §5.13.
 
@@ -517,7 +518,7 @@ flowchart LR
 3. **Integration** (FakeApi + VirtualClock, no network, no sleeps): first run, incremental polls, item mutated emits exactly one `updated` with correct `previous`; deleted item emits `deleted` via snapshotDiff and via reconcile; ETag 304 path; 429 storm stretches schedule and respects budget; proactive pacing from RateLimit headers; poison event parks and other keys continue; `holdKey` ordering; two engines one store, single lease holder, epoch fencing on GC-pause simulation; partitions added and removed; backfill lane merges with live; replay re-emits identical ids; `tick()` across many invocations equals daemon behavior; graceful `stop({ drain })`.
 4. **Seeded chaos suite (deterministic simulation):** `chaos({ seed, killPoints: 'all', cycles: 200 })` drives the engine with FakeApi mutations and kills/restarts the runner at randomly chosen kill points K1..K7 and inside store transactions (faulty store wrapper). Invariants: every FakeApi mutation has at least one delivered event (G1); duplicates share ids (G2); per-key order holds (G3); no event exists in outbox without matching cursor advance (G4); never two lease holders (G5). One seed per PR, 50 seeds nightly; failing seeds are recorded as regression tests.
 5. **Type tests** (`expectTypeOf`): inference from `schema` and from `identity`; `engine.on` name union; strategy-typed cursor in fetch context; no `any` leak (`tsc --noImplicitAny` on a consumer fixture; `attw`).
-6. **Portability job:** core suite under Node 22/24/26, Bun (latest), and `workerd` via `@cloudflare/vitest-pool-workers` (core subset with MemoryStore).
+6. **Portability job:** core suite under Node 22/24/26, Bun (latest), and `workerd` via `@cloudflare/vitest-pool-workers`. The pool only supports Vitest 4, so it lives in its own workspace package `portability/workerd` (Vitest 4 + the `cloudflareTest()` plugin) pointing at the root sources; the core, testing utilities, and the whole integration suite run inside workerd.
 7. **Performance smoke (not a gate, reported in CI summary):** snapshotDiff of 1M items against SQLite and Postgres; throughput of dispatcher at concurrency 32; core bundle size via `size-limit` (gate: core ≤ 20 kB min+gzip).
 8. Coverage gates: core ≥ 90% lines and branches; stores ≥ 85%.
 
@@ -589,7 +590,7 @@ Build order is strict through M5 (correctness first). M6 to M9 may proceed in pa
 
 ## 13. Deferred (post-1.0, tracked in ROADMAP.md)
 
-Durable Object / KV store for Cloudflare; bucketed (Merkle-style) snapshot hashing for very large datasets; parallel backfill sharding by time window; schema-drift diagnostics (new keys detected across N items); cron-style active windows and quiet hours; MySQL, MongoDB, DynamoDB stores; GraphQL pagination helpers; per-item payload compression; admin UI; webhook *receiving* with reconciliation against polling; exactly-once via consumer-side idempotency store helper; Deno-native store adapters; MCP server exposing `inspect()` and operations to agents.
+Durable Object / KV store for Cloudflare; Redis Cluster support (hash-tagged keys); bucketed (Merkle-style) snapshot hashing for very large datasets; parallel backfill sharding by time window; schema-drift diagnostics (new keys detected across N items); cron-style active windows and quiet hours; MySQL, MongoDB, DynamoDB stores; GraphQL pagination helpers; per-item payload compression; admin UI; webhook *receiving* with reconciliation against polling; exactly-once via consumer-side idempotency store helper; Deno-native store adapters; MCP server exposing `inspect()` and operations to agents.
 
 ## 14. Definition of done for 1.0
 
@@ -616,6 +617,10 @@ Durable Object / KV store for Cloudflare; bucketed (Merkle-style) snapshot hashi
 | Default `holdKey: true` on park | Preserving per-key order by default is the safe choice; users opt into skipping. |
 | Core restricted to WinterTC APIs | Enables Bun, Deno, Cloudflare Workers, and edge runtimes without forks; `tick()` makes serverless a first-class mode. |
 | pnpm as package manager | Fast, strict, workspace-friendly; pinned via `packageManager` for supply-chain hygiene. |
+| Schedule state persisted with every commit | The chaos suite found that a crash between the first commit and the end-of-cycle save left `nextDueAt: null` and stalled the key forever (and spun the daemon loop). Persisting the schedule in the same transaction removes the window; `isDue(null)` = due is the defensive backstop. |
+| `customCursor()` helper | TypeScript cannot infer a custom cursor's type through the config union while also contextually typing `advance()`; a tiny helper gives full inference without `any`. |
+| Health indicator without a runtime terminus import | ESM re-exports are eager; importing terminus at module load would make `watukuy/nestjs` fail for users without it, contradicting "optional peer". |
+| `VERSION` injected at build | One constant (`src/core/version.ts`, `tsdown define`) for the OpenTelemetry scope, the HTTP user agent, and the CLI, instead of hardcoded strings. |
 
 ---
 
@@ -626,3 +631,12 @@ Durable Object / KV store for Cloudflare; bucketed (Merkle-style) snapshot hashi
 * **Stack:** TypeScript 7, Node ≥ 22.12 (20 is EOL), tsdown instead of tsup, ESM-only instead of dual, Vitest 5, Biome 2.5, NestJS 12 target, trusted publishing with provenance, portability CI on Bun and workerd.
 * **Positioning:** softened "no OSS exists" to "no embeddable library exists"; added Nango/Airbyte, Hookdeck/Svix, and durable-execution engines to the comparison; added launch plan, Spanish README, `llms.txt`, examples for serverless, multi-tenant, NestJS, and sinks.
 * **Process:** API freeze milestone before engines; chaos suite as its own milestone; decisions log to prevent re-litigation.
+
+## Appendix B: implementation notes (recorded during the build)
+
+* Test counts at the end of M9: 727 tests on Node across 32 files (before the store contract suites), 297 core tests on Bun, 466 core + integration tests inside workerd. The chaos suite runs 4 strategies × N seeds plus one deterministic run per kill point; a 50-seed sweep (4 strategies × 2 retain modes) produced 11,292 kills, 9,876 restarts, 68,018 deliveries, 2,658 duplicates (all sharing ids) and zero guarantee violations after the fix above.
+* `TickResult.delivered` counts events delivered by the pre-poll outbox drain as well as by polls (the per-poll `delivered` field cannot see the drain).
+* The dispatcher widens its load window (up to 16× `dispatchBatchSize`) when an entire slice is held or blocked, so rows behind a parked or retrying key do not starve other ordering keys.
+* `MemoryStore` read paths never create key records; `listKeys()` reports written keys only. Ordering of `listKeys()` is unspecified; the Redis store returns sorted keys and de-duplicates identical log entries.
+* Node's built-in type stripping runs the examples directly, except the NestJS example (decorators are not erasable) which compiles with `tsc` first.
+* Core bundle at M9: 19.5 kB min+brotli (budget 20 kB).
