@@ -43,7 +43,7 @@ jobs:
           esac
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-      - name: Graduate (stable only): drop the pre-release dist-tag, deprecate that version's pre-releases
+      - name: "Graduate (stable only): drop the pre-release dist-tag, deprecate that version pre-releases"
         if: steps.meta.outputs.published == 'false' && steps.meta.outputs.tag == 'latest'
         run: |
           set +e
