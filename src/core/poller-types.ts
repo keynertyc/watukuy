@@ -128,6 +128,7 @@ export interface LogConfig {
   retention: Duration;
 }
 
+/** Options common to `definePoller` with and without a schema (PLAN §4.3). */
 interface PollerConfigShared<Name extends string, Item, C extends CursorConfig, PData> {
   /** Stable name; used in store keys, event `source`, and metrics. */
   name: Name;
