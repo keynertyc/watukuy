@@ -682,8 +682,14 @@ class WatukuyEngine<P extends PollerMap> implements Engine<P> {
         ? null
         : strategy.serialize(rt.def.cursor, strategy.fromRaw(rt.def.cursor, options.to));
     const now = this.clock.now();
+    const schedule = makeDue(
+      state?.schedule ??
+        initialScheduleState(now, { schedule: rt.def.schedule, circuit: rt.def.circuit }),
+      now,
+    );
     await this.store.saveStateUnfenced(key, {
       lanes: { ...(state?.lanes ?? {}), live: { cursor } },
+      schedule,
       updatedAt: now,
     });
     if (options.clearSnapshot) await this.store.clearItems(key);

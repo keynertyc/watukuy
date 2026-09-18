@@ -5,6 +5,7 @@
 
 export { toCloudEvent } from './core/cloudevents.ts';
 export type * from './core/cursor-types.ts';
+export { customCursor } from './core/custom-cursor.ts';
 export { definePoller, isPollerDefinition } from './core/define-poller.ts';
 export { type Duration, formatDuration, parseDuration } from './core/duration.ts';
 export { createWatukuy } from './core/engine.ts';

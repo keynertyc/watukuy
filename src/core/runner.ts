@@ -359,6 +359,7 @@ async function runCycle(
   let lastRateLimit = state.schedule.rateLimit;
   let lastDrain: DrainResult | null = null;
   let sawNotModified = false;
+  let halted = false;
 
   const fetchWithFlag: typeof globalThis.fetch = async (input, init) => {
     const res = await deps.fetchImpl(input, init);
@@ -510,6 +511,7 @@ async function runCycle(
           lastDrain = await drainOutbox(deps, lease, deps.consumer, signal);
           if (lastDrain.halted) {
             state = await openCircuitForHalt(deps, state);
+            halted = true;
             done = true;
             break outer;
           }
@@ -532,7 +534,8 @@ async function runCycle(
     }
 
     // Full scans: everything not seen is deleted, once the whole listing completed.
-    if (done && isFullScan && !summary.truncated) {
+    // A 304 Not Modified means "identical to last time": never treat it as an empty listing.
+    if (done && isFullScan && !summary.truncated && !sawNotModified && !halted) {
       const missing: string[] = [];
       for await (const batchIds of store.streamIdentities(key)) {
         for (const id of detectDeletes(batchIds, seen)) missing.push(id);
@@ -599,7 +602,9 @@ async function runCycle(
     const hadEvents = summary.events.created + summary.events.updated + summary.events.deleted > 0;
 
     let schedule = state.schedule;
-    if (lane === 'live') {
+    if (halted) {
+      schedule = { ...state.schedule, lastPoll: summary, lastPollAt: clock.now() };
+    } else if (lane === 'live') {
       const r = afterSuccess(
         state.schedule,
         { schedule: poller.schedule, circuit: poller.circuit },
@@ -811,21 +816,26 @@ async function processPage(
     out.counts[change.type]++;
   }
   if (force) {
-    // Backfill with force: re-emit known items as `updated` so consumers can rebuild state.
+    // Backfill with force: re-emit every known, unchanged item as `updated` so consumers can
+    // rebuild state. Covers both hash-unchanged candidates and version fast-path skips.
     const changed = new Set(diff.changes.map((c) => c.identity));
-    for (const cand of candidates) {
-      if (changed.has(cand.identity)) continue;
-      const row = existing.get(cand.identity);
+    const byIdentity = new Map<string, unknown>();
+    for (const item of valid) byIdentity.set(poller.identity(item as never), item);
+    for (const identity of identities) {
+      if (changed.has(identity)) continue;
+      const item = byIdentity.get(identity);
+      const row = existing.get(identity);
+      if (item === undefined || !row) continue;
       sequence++;
       out.events.push(
         await buildEventRow(
           deps,
           lane,
           'updated',
-          cand.identity,
-          cand.version ?? cand.hash,
-          cand.item,
-          poller.retain === 'payload' ? row?.payload : undefined,
+          identity,
+          row.version ?? row.hash,
+          item,
+          poller.retain === 'payload' ? row.payload : undefined,
           sequence,
           cursorForEvents,
         ),
