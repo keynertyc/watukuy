@@ -79,6 +79,9 @@ export interface RunKeyResult {
   drainedBefore: number;
 }
 
+/** Hard bound for full-scan lanes (snapshotDiff, reconcile) against APIs whose `hasMore` never turns false. */
+const FULL_SCAN_PAGE_CAP = 10_000;
+
 function nowIso(ms: number): string {
   return new Date(ms).toISOString();
 }
@@ -413,7 +416,10 @@ async function runCycle(
         summary.truncated = true;
         break;
       }
-      if (summary.pages >= poller.maxPagesPerCycle) {
+      // Full scans must see the whole listing to detect deletes, so only the hard safety cap
+      // (not maxPagesPerCycle) bounds them; incremental lanes stop at maxPagesPerCycle and
+      // continue immediately on the next cycle.
+      if (summary.pages >= (isFullScan ? FULL_SCAN_PAGE_CAP : poller.maxPagesPerCycle)) {
         summary.truncated = true;
         break;
       }
@@ -458,6 +464,7 @@ async function runCycle(
           isFullScan,
           force,
           seen,
+          strategy.serialize(cfg, adv.cursor),
         );
         sequence = commit.sequence;
         summary.items += adv.items.length;
@@ -530,7 +537,7 @@ async function runCycle(
           summary.truncated = true;
           break outer;
         }
-        if (summary.pages >= poller.maxPagesPerCycle && !done) {
+        if (summary.pages >= (isFullScan ? FULL_SCAN_PAGE_CAP : poller.maxPagesPerCycle) && !done) {
           summary.truncated = true;
           break outer;
         }
@@ -757,6 +764,7 @@ async function processPage(
   isFullScan: boolean,
   force: boolean,
   seen: Set<string>,
+  cursorAfterPage: string,
 ): Promise<PageCommit> {
   const { poller, store, key, clock } = deps;
   const now = clock.now();
@@ -804,7 +812,7 @@ async function processPage(
   if (isFullScan) for (const id of identities) seen.add(id);
 
   out.upserts = diff.upserts;
-  const cursorForEvents = null;
+  const cursorForEvents = cursorAfterPage;
   for (const change of diff.changes) {
     sequence++;
     out.events.push(

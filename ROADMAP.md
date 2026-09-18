@@ -14,6 +14,7 @@ thumbs-up. Items marked *design-ready* have a sketch in `PLAN.md`.
 - **Active windows / quiet hours** — cron-style windows in which a poller may run.
 - **`watukuy.lag.seconds` OpenTelemetry observable** backed by `inspect()`.
 - **`onCircuitProbe` hook** so half-open is reported explicitly.
+- **Trace context propagation into handlers** (`onDeliverStart` hook + `ctx.traceparent`) so `watukuy.deliver` spans parent the consumer's work.
 
 ## Later
 

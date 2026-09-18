@@ -25,6 +25,7 @@ export {
   type SerializedEvent,
   type SinkFormat,
   serializeEvent,
+  toSinkPayload,
 } from './serialize.ts';
 export {
   DEFAULT_WEBHOOK_TIMEOUT_MS,

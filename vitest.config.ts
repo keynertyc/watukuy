@@ -5,7 +5,7 @@ export default defineConfig({
     include: ['src/**/*.test.ts', 'test/**/*.test.ts'],
     typecheck: {
       enabled: true,
-      include: ['test/types/**/*.test-d.ts'],
+      include: ['test/types/**/*.test-d.ts', 'test/docs/**/*.test-d.ts'],
       tsconfig: './tsconfig.json',
     },
     testTimeout: 30_000,

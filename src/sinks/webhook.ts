@@ -216,8 +216,8 @@ export async function verifyWebhookSignature(input: {
  * The timeout uses real timers; `clock` only feeds the `webhook-timestamp` header.
  *
  * @example
- * const engine = createWatukuy({ store });
- * engine.on(orders, webhookSink({
+ * const engine = createWatukuy({ store, pollers: { orders } });
+ * engine.on('orders', webhookSink({
  *   url: 'https://example.com/hooks/orders',
  *   secret: process.env.WEBHOOK_SECRET!,
  * }));

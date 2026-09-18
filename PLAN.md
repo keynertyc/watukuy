@@ -173,7 +173,7 @@ const invoices = definePoller({
     fetch: async ({ page, partition, http, signal }) => { /* list everything, paged */ },
   },
   delivery: {
-    orderingKey: (i) => i.customerId,                // default is identity
+    orderingKey: (e) => e.data?.customerId ?? e.subject, // receives the event; default is identity
     concurrency: 8,
     retry: { attempts: 5, backoff: { base: '1s', factor: 2, max: '2m' } },
     poison: { action: 'park', holdKey: true },
@@ -203,7 +203,7 @@ await engine.trigger('orders');                                     // poll now
 await engine.backfill('invoices', { from: null, partition: 't_42' });// separate lane, low priority
 await engine.replay('orders', { from: '2026-09-01T00:00:00Z' });    // re-emit from retained log
 await engine.pause('catalog'); await engine.resume('catalog');
-const parked = await engine.parked.list('orders'); await engine.parked.retry(parked[0].id);
+const parked = await engine.parked.list('orders'); await engine.parked.retry('orders', [parked[0].id]);
 const status = await engine.inspect();                              // per poller/partition health
 await engine.stop({ drain: true, timeout: '30s' });
 ```
@@ -220,7 +220,7 @@ await engine.stop({ drain: true, timeout: '30s' });
 | `schemaVersion` | `number` | `1` | Bumping triggers `onSchemaChange`: `'rebaseline'` (silent) or `'emit'`. |
 | `cursor` | strategy object | required | See §5.2. |
 | `fetch` | `(ctx) => Promise<Page> \| AsyncIterable<Page>` | required | One page per call; runner loops. Generator form for SDK iterators. |
-| `schedule` | `{ min, max, adaptive?, jitter? }` | `adaptive: true, jitter: 0.1` | See §5.6. |
+| `schedule` | `{ min, max, adaptive?, jitter? }` | `min: '30s', max: '5m', adaptive: true, jitter: 0.1` | See §5.6. |
 | `budget` | `string` | none | Name of a shared budget. |
 | `partitions` | `() => Promise<Partition[]>` | single partition | Multi-tenant fan-out. |
 | `partitionsRefresh` | duration | `'5m'` | |
@@ -235,7 +235,7 @@ await engine.stop({ drain: true, timeout: '30s' });
 
 ### 4.4 `createWatukuy` options
 
-`store` (required), `pollers` (keyed object), `budgets`, `budgetStore` (optional distributed budget), `instanceId`, `clock`, `random`, `logger`, `hooks`, `lease: { ttl, renewEvery }`, `source` (base URI for event `source`, default `urn:watukuy:<name>`), `defaults` (poller defaults).
+`store` (required), `pollers` (keyed object), `budgets`, `budgetStore` (optional distributed budget), `instanceId`, `clock`, `random`, `logger`, `hooks`, `lease: { ttl, renewEvery }`, `sourcePrefix` (base for event `source`, default `urn:watukuy:`), `fetch` (global fetch for the HTTP helper), `dispatchBatchSize`.
 
 ### 4.5 Engine surface
 
@@ -303,7 +303,7 @@ sequenceDiagram
 **Rules**
 
 1. A cycle first drains any pending outbox from a previous crash before fetching anything (G1, G9).
-2. `commitPoll` is atomic. For `timestamp`/`token`/`page` it commits per page. For `snapshotDiff` it commits once after the last page (all pages are needed to detect deletes); memory is bounded by identity plus hash, not payloads, unless `retain: 'payload'`.
+2. `commitPoll` is atomic and runs per page for every strategy (created/updated events flow as pages arrive). Full scans (`snapshotDiff`, reconcile) keep the set of seen identities in memory and commit the `deleted` events in one final transaction after the last page; they are bounded by a hard safety cap (10,000 pages) rather than `maxPagesPerCycle`, because a partial listing can never be used to infer deletes. A full scan interrupted by a `tick()` deadline restarts from page 1 next time.
 3. The store rejects any write whose epoch is not the current lease epoch (G5). On rejection the runner aborts the cycle and discards local work.
 3a. The current schedule state travels inside every `commitPoll` state patch, so a crash between the first commit and the end-of-cycle schedule save never leaves a row without a due time. Defensively, `isDue` treats `nextDueAt: null` as due. (Found by the chaos suite, seed 2.)
 4. `hasMore: true` makes the runner continue immediately with the derived cursor ("catch-up mode") until `maxPagesPerCycle`, then yields to the scheduler.
@@ -396,7 +396,7 @@ If `schema` is set, each item is validated with the Standard Schema `~standard.v
 ### 5.13 Observability
 
 * **Hooks port:** `onPollStart`, `onPollEnd`, `onFetch`, `onCommit`, `onEvent`, `onDelivered`, `onRetry`, `onParked`, `onInvalid`, `onError`, `onLeaseAcquired`, `onLeaseLost`, `onCircuitOpen`, `onCircuitClose`, `onBudgetWait`, `onScheduleChange`. Multiple hook sets compose.
-* **`watukuy/otel`:** spans `watukuy.poll`, `watukuy.fetch`, `watukuy.commit`, `watukuy.deliver` (trace context propagated into handler `ctx`); metrics `watukuy.poll.duration`, `watukuy.items.fetched`, `watukuy.events.emitted{type}`, `watukuy.events.delivered`, `watukuy.events.parked`, `watukuy.outbox.pending`, `watukuy.lag.seconds` (now minus cursor, timestamp pollers), `watukuy.budget.tokens`, `watukuy.circuit.state`, `watukuy.lease.holder`. Optional peer `@opentelemetry/api`; no-op if absent.
+* **`watukuy/otel`:** spans `watukuy.poll` (with `watukuy.fetch`, `watukuy.commit`, `watukuy.deliver` children); metrics `watukuy.poll.duration`, `watukuy.items.fetched`, `watukuy.items.invalid`, `watukuy.events.emitted{type}`, `watukuy.events.delivered`, `watukuy.events.retried`, `watukuy.events.parked{kind}`, `watukuy.errors{phase}`, `watukuy.lease.lost`, `watukuy.circuit.opened`, `watukuy.budget.waits`, `watukuy.budget.wait`, `watukuy.deliver.duration`, gauges `watukuy.circuit.state` and `watukuy.schedule.interval`. Optional peer `@opentelemetry/api`; no-op if absent. Trace context is not propagated into handler `ctx` in 1.0, and lag / outbox depth / budget tokens are exposed through `inspect()` (an `inspect()`-backed observer is on the roadmap).
 * **`inspect()`:** per `(poller, partition)`: cursor, lane cursors, nextDueAt, interval, circuit, lease owner/epoch, lastPoll (duration, items, events), outbox pending, parked count, lag, last error. Serializable for `/healthz`.
 * **Logger port:** `{ debug, info, warn, error }`; default logs `warn`/`error` to console.
 
@@ -484,13 +484,13 @@ flowchart LR
 |---|---|---|
 | `watukuy` | `createWatukuy`, `definePoller`, `MemoryStore`, `toCloudEvent`, errors, types | none |
 | `watukuy/store-sqlite` | `SqliteStore` on `node:sqlite` | none |
-| `watukuy/store-postgres` | `PostgresStore` (`pg` Pool or any `{ query }` client) | `pg` |
+| `watukuy/store-postgres` | `PostgresStore({ client })` (`pg` Pool or PGlite) | `pg` |
 | `watukuy/store-redis` | `RedisStore`, `RedisBudgetStore` (`RedisLike` minimal interface: node-redis or ioredis) | `redis` or `ioredis` |
 | `watukuy/nestjs` | `WatukuyModule`, `@OnWatukuyEvent`, `WatukuyHealthIndicator` | `@nestjs/common`, `@nestjs/core`, optional `@nestjs/terminus` |
 | `watukuy/otel` | `otelHooks()` | `@opentelemetry/api` |
 | `watukuy/sinks` | `webhookSink()` (Standard Webhooks signature, CloudEvents body), `bullmqSink()`, `sqsSink()`, `kafkaSink()` as thin adapters over user-provided clients | none (clients injected) |
 | `watukuy/testing` | `FakeApi`, `VirtualClock`, `SeededRandom`, `chaos()`, `storeContractSuite()` | `vitest` (dev) |
-| `watukuy/cli` | `bin: watukuy` with `migrate`, `inspect`, `trigger`, `reset-cursor`, `parked ls\|retry\|discard` | none |
+| `watukuy/cli` | `bin: watukuy` driven by `--config` (a module exporting the engine): `inspect`, `tick`, `run`, `trigger`, `pause`, `resume`, `backfill`, `replay`, `reset-cursor`, `parked ls\|retry\|discard`, and `migrate` (also `--store sqlite\|postgres` without a config) | none |
 
 **Source layout:** `src/core` (types, envelope, runner, dispatcher, outbox, leases, partitions, lanes, engine, tick), `src/scheduler`, `src/cursor`, `src/diff` (jcs, hash, ids), `src/budget`, `src/http`, `src/validate`, `src/stores/{memory,sqlite,postgres,redis}` plus `migrations/`, `src/nestjs`, `src/otel`, `src/sinks`, `src/testing`, `src/cli`.
 
@@ -516,7 +516,7 @@ flowchart LR
 1. **Unit** (Vitest, virtual clock, seeded random): each cursor strategy (advance, ties, lag, overlap, empty pages, out-of-order, catch-up); change engine (create/update/delete matrix, JCS stability across key order and number forms, fingerprint, schemaVersion rebaseline vs emit, deterministic ids); scheduler (AIMD bounds, jitter bounds, 304 as idle, RateLimit pacing, Retry-After seconds and date, backoff, circuit open/probe/close); budgets (burst, refill, round-robin and weighted fairness, lane priority, maxWait); HTTP helper (validators, header parsing variants, problem details, redaction).
 2. **Store contract suite** (`storeContractSuite(factory)` exported from `watukuy/testing`, so third-party stores can certify themselves): leases (acquire, renew, expire, steal, epoch fencing rejects stale writes), `commitPoll` atomicity (inject a failure mid-transaction: nothing persisted), outbox lifecycle, parked lifecycle, validators, log read/prune, `streamIdentities` at 100k identities. Runs against Memory, SQLite (in-process), Postgres and Redis (Testcontainers; skipped locally without Docker, required on CI).
 3. **Integration** (FakeApi + VirtualClock, no network, no sleeps): first run, incremental polls, item mutated emits exactly one `updated` with correct `previous`; deleted item emits `deleted` via snapshotDiff and via reconcile; ETag 304 path; 429 storm stretches schedule and respects budget; proactive pacing from RateLimit headers; poison event parks and other keys continue; `holdKey` ordering; two engines one store, single lease holder, epoch fencing on GC-pause simulation; partitions added and removed; backfill lane merges with live; replay re-emits identical ids; `tick()` across many invocations equals daemon behavior; graceful `stop({ drain })`.
-4. **Seeded chaos suite (deterministic simulation):** `chaos({ seed, killPoints: 'all', cycles: 200 })` drives the engine with FakeApi mutations and kills/restarts the runner at randomly chosen kill points K1..K7 and inside store transactions (faulty store wrapper). Invariants: every FakeApi mutation has at least one delivered event (G1); duplicates share ids (G2); per-key order holds (G3); no event exists in outbox without matching cursor advance (G4); never two lease holders (G5). One seed per PR, 50 seeds nightly; failing seeds are recorded as regression tests.
+4. **Seeded chaos suite (deterministic simulation):** `runChaos({ seed, strategy, steps, killPoints })` (kill points `before-acquire`, `after-fetch`, `after-commit`, `mid-dispatch`, `before-ack`, `after-ack-before-schedule`, `during-release`, `handler`, mapping to K1..K7) drives the engine with FakeApi mutations and kills/restarts the runner at randomly chosen kill points K1..K7 and inside store transactions (faulty store wrapper). Invariants: every FakeApi mutation has at least one delivered event (G1); duplicates share ids (G2); per-key order holds (G3); no event exists in outbox without matching cursor advance (G4); never two lease holders (G5). One seed per PR, 50 seeds nightly; failing seeds are recorded as regression tests.
 5. **Type tests** (`expectTypeOf`): inference from `schema` and from `identity`; `engine.on` name union; strategy-typed cursor in fetch context; no `any` leak (`tsc --noImplicitAny` on a consumer fixture; `attw`).
 6. **Portability job:** core suite under Node 22/24/26, Bun (latest), and `workerd` via `@cloudflare/vitest-pool-workers`. The pool only supports Vitest 4, so it lives in its own workspace package `portability/workerd` (Vitest 4 + the `cloudflareTest()` plugin) pointing at the root sources; the core, testing utilities, and the whole integration suite run inside workerd.
 7. **Performance smoke (not a gate, reported in CI summary):** snapshotDiff of 1M items against SQLite and Postgres; throughput of dispatcher at concurrency 32; core bundle size via `size-limit` (gate: core ≤ 20 kB min+gzip).

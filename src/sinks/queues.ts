@@ -59,7 +59,7 @@ export interface BullMQSinkOptions<Item> {
  *
  * @example
  * import { Queue } from 'bullmq';
- * engine.on(orders, bullmqSink(new Queue('orders'), { format: 'raw' }));
+ * engine.on('orders', bullmqSink(new Queue('orders'), { format: 'raw' }));
  */
 export function bullmqSink<Item>(
   queue: BullMQQueueLike,
@@ -155,7 +155,7 @@ export interface SqsSinkOptions<Item> {
  *
  * @example
  * import { SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs';
- * engine.on(orders, sqsSink(new SQSClient({}), {
+ * engine.on('orders', sqsSink(new SQSClient({}), {
  *   queueUrl: process.env.QUEUE_URL!,
  *   createCommand: (input) => new SendMessageCommand(input),
  * }));
@@ -248,7 +248,7 @@ export interface KafkaSinkOptions {
  * import { Kafka } from 'kafkajs';
  * const producer = new Kafka({ brokers }).producer();
  * await producer.connect();
- * engine.on(orders, kafkaSink(producer, { topic: 'orders' }));
+ * engine.on('orders', kafkaSink(producer, { topic: 'orders' }));
  */
 export function kafkaSink<Item>(
   producer: KafkaProducerLike,

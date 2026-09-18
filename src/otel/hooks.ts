@@ -139,7 +139,7 @@ interface Instruments {
  * import { otelHooks } from 'watukuy/otel';
  *
  * const engine = createWatukuy({
- *   pollers: [orders],
+ *   pollers: { orders },
  *   hooks: [otelHooks({ attributes: { 'service.name': 'erp-sync' } })],
  * });
  * ```

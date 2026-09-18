@@ -9,7 +9,7 @@
  * import { createWatukuy } from 'watukuy';
  * import { otelHooks } from 'watukuy/otel';
  *
- * const engine = createWatukuy({ pollers: [orders], hooks: [otelHooks()] });
+ * const engine = createWatukuy({ pollers: { orders }, hooks: [otelHooks()] });
  * ```
  *
  * @packageDocumentation

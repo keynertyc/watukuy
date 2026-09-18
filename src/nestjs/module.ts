@@ -275,7 +275,7 @@ export class WatukuyModule implements OnApplicationBootstrap, BeforeApplicationS
    *   imports: [ConfigModule],
    *   inject: [ConfigService],
    *   useFactory: (config: ConfigService) => ({
-   *     store: new PostgresStore({ connectionString: config.getOrThrow('DATABASE_URL') }),
+   *     store: new PostgresStore({ client: new Pool({ connectionString: config.get('DATABASE_URL') }) }),
    *     pollers: [orders],
    *     stop: { drain: true, timeout: '20s' },
    *   }),

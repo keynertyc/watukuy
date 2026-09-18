@@ -16,6 +16,8 @@ describe('lifecycle (timestamp strategy, tick mode)', () => {
     expect(c.events[0]?.lane).toBe('live');
     expect(c.events[0]?.partition).toBe('');
     expect(c.events.map((e) => e.sequence)).toEqual([1, 2, 3, 4, 5]);
+    // Every event carries the cursor as of the page that produced it (PLAN §4.6).
+    expect(c.events[4]?.cursor).toEqual({ value: w.clock.iso(), tieBreak: 'o0004' });
 
     // Not due yet: nothing happens.
     const t2 = await engine.tick();

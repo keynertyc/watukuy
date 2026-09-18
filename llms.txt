@@ -1,0 +1,49 @@
+# watukuy
+
+> Webhooks for APIs that don't have them. An embeddable, zero-dependency TypeScript engine that polls a pull-only third-party API and emits a correct, typed stream of `created` / `updated` / `deleted` events. It owns cursors (timestamp keyset, token, page, snapshotDiff, custom), pagination, adaptive scheduling, RFC 8785 hashing and diffing, a transactional outbox, ordering keys with retries and poison parking, shared rate budgets, fenced leases for multi-instance safety, partitions for multi-tenant fan-out, backfill/reconcile/replay lanes, a `tick()` one-shot mode for serverless, an HTTP helper (ETag/304, RateLimit headers, Retry-After, Problem Details), hooks, OpenTelemetry, and `inspect()`. ESM-only, Node >= 22.12, core runs on any WinterTC runtime.
+
+## Key facts for integrating
+
+- Install: `npm install watukuy`. Imports: `watukuy` (core, `MemoryStore`), `watukuy/store-sqlite` (`SqliteStore({ path, tablePrefix?, busyTimeoutMs? })`), `watukuy/store-postgres` (`PostgresStore({ client, schema?, tablePrefix?, closeClient? })`; `client` is a `pg.Pool` or PGlite, peer `pg`), `watukuy/store-redis` (`RedisStore({ client, prefix? })`, `RedisBudgetStore({ client, prefix? })`), `watukuy/otel` (`otelHooks()`), `watukuy/sinks` (`webhookSink`, `bullmqSink`, `sqsSink`, `kafkaSink`), `watukuy/testing` (`FakeApi`, `VirtualClock`, `SeededRandom`, `fakeItems`, `createTestLogger`, `runChaos`, `assertChaosReport`), `watukuy/nestjs` (`WatukuyModule.forRoot/forRootAsync/forFeature`, `@OnWatukuyEvent`, `@InjectWatukuy`, `WATUKUY_ENGINE`, `WatukuyHealthIndicator`), `watukuy/cli` (`runCli`).
+- Call `await store.migrate()` once for SQL stores (or `npx watukuy migrate --store sqlite --path ./watukuy.db`); tables are also created lazily on first use. CLI: `npx watukuy inspect|tick|run|trigger|pause|resume|backfill|replay|reset-cursor|parked ls|retry|discard|migrate --config ./watukuy.config.ts` where the config module exports the engine.
+- Minimal poller: `definePoller({ name, identity: (item) => string, cursor: { strategy: ... }, fetch: async ({ cursor, http, signal, page, partition, lane }) => ({ items, hasMore?, cursor? }) })`. Add `schema` (any Standard Schema v1, e.g. Zod 4) to validate and infer the item type; without it, annotate the `identity` parameter.
+- Engine: `const engine = createWatukuy({ store, pollers: { orders }, budgets?, hooks?, instanceId?, lease?, clock?, random?, logger?, fetch? })`. The `pollers` object key MUST equal the poller `name`.
+- Consume: `engine.on('orders', async (event, ctx) => { ... })` (one handler per poller) or `for await (const event of engine.subscribe('orders', { signal }))`. Never both for one poller.
+- Run: `await engine.start()` (daemon) or `await engine.tick({ maxDuration: '50s' })` from any cron/scheduler (serverless). Attach handlers before `tick()`.
+- Event: `{ id, type, source, subject, time, poller, partition, lane, sequence, cursor, data, previous?, attempt }`. `id` is a deterministic sha256 hex; dedup by it at the consumer (queue jobId, unique column). `data` is `undefined` for `deleted` unless `retain: 'payload'`.
+- Cursor strategies: `{ strategy: 'timestamp', field, tieBreak?, initial: string | null, lag?, overlap?, parse?, format? }` (fetch sees `{ value, tieBreak }`); `{ strategy: 'token', initial: string | null }` (fetch sees `{ value }`, return `cursor: null` when exhausted); `{ strategy: 'page', initial?: 1 }` (fetch sees `{ page }`, return `hasMore`); `{ strategy: 'snapshotDiff' }` (fetch sees `null`, use `ctx.page`, detects deletes); `customCursor({ initial, advance })`.
+- Incremental strategies do not detect deletes: add `reconcile: { every: '6h', fetch: async ({ page, http }) => ({ items, hasMore }) }`.
+- Durations are `'250ms' | '5s' | '2m' | '6h' | '1d'` strings or milliseconds.
+- `definePoller` defaults: `schedule { min: '30s', max: '5m', adaptive: true, jitter: 0.1 }`, `delivery { concurrency: 1, retry: { attempts: 5, backoff: { base: '1s', factor: 2, max: '2m' } }, poison: { action: 'park', holdKey: true }, ackMode: 'auto' }`, `retain: 'hash'`, `onInvalid: 'quarantine'`, `onSchemaChange: 'rebaseline'`, `maxPagesPerCycle: 50`, `circuit { failures: 5, probeEvery: schedule.max }`, `schemaVersion: 1`, `partitionsRefresh: '5m'`, `budgetCost: 1`.
+- `createWatukuy` defaults: `lease.ttl '30s'`, `lease.renewEvery ttl/3`, `dispatchBatchSize 100`, `sourcePrefix 'urn:watukuy:'`, `fetch globalThis.fetch`.
+- Budgets: `budgets: { erp: { requests: 100, per: '1m', burst?, fairness?: 'round-robin' | 'weighted', maxWait? } }` and `budget: 'erp'` on pollers. `ctx.http` charges 1 token per request (override with `cost`).
+- Multi-tenant: `partitions: async () => [{ key: 't1', data: { token } }]`; `fetch` gets `partition.data`; operations then require `{ partition }`.
+- Operations: `trigger(name, { partition? })`, `pause` / `resume`, `backfill(name, { from, to?, partition?, force? })`, `replay(name, { from, to?, partition? })` (needs `log: { retention }`), `resetCursor(name, { to, partition?, clearSnapshot? })`, `parked.list / retry / discard`, `partitions.list / remove`, `inspect()`, `stop({ drain: true, timeout: '30s' })`.
+- Guarantees: at-least-once delivery; deterministic event ids; ordering per key within a partition; atomic commit of cursor + snapshot + events; single active poller per (poller, partition) via fenced leases; rate budgets never exceeded; failing handlers isolated per ordering key, poison events parked; deterministic under test (injectable clock/random); crash-safe at every store boundary (chaos-tested); bounded memory. NOT guaranteed: exactly-once, cross-key/partition/poller ordering, intermediate states between polls, deletes on incremental strategies without reconcile.
+- Errors: all extend `WatukuyError` with `code` in `CONFIG | LEASE_LOST | HTTP | STORE | VALIDATION | HANDLER | REPLAY_UNAVAILABLE | BUDGET_TIMEOUT | CIRCUIT_OPEN | NOT_RUNNING | UNKNOWN_POLLER | UNSUPPORTED`. `HttpError` has `status`, `retryAfterMs`, `rateLimit`, `problem`, `isThrottle`.
+- Testing: `new VirtualClock('2026-01-01T00:00:00Z')`, `new SeededRandom(1)`, `new FakeApi({ clock, identity, timestampField, items })` with `listSince/listPage/listToken/listAll`, `add/update/remove`, `failNext`, `setEtags`, `setRateLimit`, `setLatency`, `fetchImpl()`. Pass `clock`, `random`, and `fetch: api.fetchImpl()` to `createWatukuy`; drive time with `await clock.advance(ms)` and `await engine.tick()`.
+
+## Docs
+
+- [README](README.md): tagline, problem, 30-line quickstart, feature list, guarantees table, `tick()` snippet, comparison, architecture, cursor table, delivery summary, install, docs index.
+- [How it works](docs/how-it-works.md): poll cycle sequence diagram, commit protocol rules, kill points K1..K7, poller state machine, lanes.
+- [Guarantees](docs/guarantees.md): G1..G10 with practical meaning, how each is tested, explicit non-guarantees.
+- [Cursors](docs/cursors.md): the five strategies, decision guide, timestamp pitfalls (ties/tieBreak, lag, overlap, parse/format for epoch formats), `customCursor()`, reconcile.
+- [Delivery](docs/delivery.md): ordering keys, concurrency, retries, park vs halt, holdKey, manual ack, `subscribe()` backpressure, consumer-side dedup recipes.
+- [Stores](docs/stores.md): choosing Memory/SQLite/Postgres/Redis, migrations, SQL schema, sizing, the `StateStore` contract, writing and certifying a custom store.
+- [Serverless](docs/serverless.md): `tick()` semantics and `TickResult`, Cloudflare Workers cron, AWS Lambda + EventBridge, Vercel cron, Kubernetes CronJob, leases across invocations, portability.
+- [Multi-tenant](docs/multi-tenant.md): partitions, per-partition state, refresh and removal (pause, not delete), per-partition operations, budgets across tenants.
+- [NestJS](docs/nestjs.md): `WatukuyModule.forRoot/forRootAsync/forFeature`, `@OnWatukuyEvent`, `WATUKUY_ENGINE`, health indicator, manual mode.
+- [Observability](docs/observability.md): all hooks with payloads, `otelHooks()` spans and metrics, `inspect()` shape, fields to alert on, health endpoint example.
+- [HTTP helper](docs/http-helper.md): `ctx.http.get/request`, query building, ETag/304, RateLimit header families and pacing, Retry-After, Problem Details, budget charging, redaction, no retries.
+- [Recipes](docs/recipes.md): BullMQ, SQS, Kafka, Standard Webhooks re-emission, Inngest, Temporal, `for await` consumer, API without ids, epoch-seconds timestamps, GraphQL with `token`, reconcile for deletes, backfill.
+- [Runbook](docs/runbook.md): trigger, pause/resume, backfill, replay, resetCursor, parked list/retry/discard, stuck lease, circuit open, schema drift, alerting fields, CLI.
+- [Comparison](docs/comparison.md): schedulers, integration platforms, webhook infra, durable execution, hand-rolled pollers, with trade-offs.
+- [FAQ](docs/faq.md): common questions.
+- [Stability](docs/stability.md): semver policy, what is public API, supported runtimes, deprecation policy, security reporting.
+- [API](docs/api.md): compact reference of every export, grouped by concern.
+
+## Optional
+
+- [Launch plan](PLAN.md): the normative design document (guarantees, API, semantics, ports, milestones).
+- [Contributing](CONTRIBUTING.md), [Security policy](SECURITY.md), [License](LICENSE).
