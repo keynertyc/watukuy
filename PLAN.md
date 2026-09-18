@@ -4,7 +4,7 @@
 
 | | |
 |---|---|
-| **Status** | Approved for development. Supersedes PLAN v0.1 (see Appendix A for the delta). |
+| **Status** | Built. Milestones M0–M11 complete except the publish step (explicit go-ahead required). `1.0.0-rc.0` cut locally on 2026-09-18; see Appendix C for the final verification numbers. |
 | **Target release** | `watukuy@1.0.0` public launch, preceded by `1.0.0-rc.x` feedback window. |
 | **npm name** | `watukuy` (unscoped) verified available on 2026-09-18. |
 | **Repo directory** | `/Users/keyner/Documents/ReactTs/npm-package-1` |
@@ -588,6 +588,8 @@ flowchart LR
 
 Build order is strict through M5 (correctness first). M6 to M9 may proceed in parallel branches. Publishing happens only on explicit go-ahead.
 
+**Status (2026-09-18):** M0–M10 done; M11 done up to and including the local `1.0.0-rc.0` version cut (changelog written, changesets in `rc` pre-release mode, tag `v1.0.0-rc.0`). Not done: `npm publish` (needs the npm trusted-publishing configuration for the GitHub repository and an explicit go-ahead), the two-week rc feedback window, the launch checklist (§11.3), and the one-time GitHub Pages setting for the docs workflow.
+
 ## 13. Deferred (post-1.0, tracked in ROADMAP.md)
 
 Durable Object / KV store for Cloudflare; Redis Cluster support (hash-tagged keys); bucketed (Merkle-style) snapshot hashing for very large datasets; parallel backfill sharding by time window; schema-drift diagnostics (new keys detected across N items); cron-style active windows and quiet hours; MySQL, MongoDB, DynamoDB stores; GraphQL pagination helpers; per-item payload compression; admin UI; webhook *receiving* with reconciliation against polling; exactly-once via consumer-side idempotency store helper; Deno-native store adapters; MCP server exposing `inspect()` and operations to agents.
@@ -640,3 +642,19 @@ Durable Object / KV store for Cloudflare; Redis Cluster support (hash-tagged key
 * `MemoryStore` read paths never create key records; `listKeys()` reports written keys only. Ordering of `listKeys()` is unspecified; the Redis store returns sorted keys and de-duplicates identical log entries.
 * Node's built-in type stripping runs the examples directly, except the NestJS example (decorators are not erasable) which compiles with `tsc` first.
 * Core bundle at M9: 19.5 kB min+brotli (budget 20 kB).
+
+## Appendix C: final verification (2026-09-18, commit tagged `v1.0.0-rc.0`)
+
+| Check | Result |
+|---|---|
+| Lint (Biome 2.5) | 176 files clean |
+| Typecheck (TypeScript 7.0, `strict`, `exactOptionalPropertyTypes`) | clean, including examples and docs snippet tests |
+| Tests on Node 24 | 39 files, 1,175 passed, 0 skipped (Memory, SQLite, PGlite, real Postgres and Redis via Testcontainers, NestJS e2e, chaos at 3 seeds × 4 strategies + per-kill-point runs) |
+| Coverage (thresholds 90/85/90/90) | statements 94.5%, branches 88.7%, functions 96.4%, lines 95.8% |
+| Core + integration inside workerd (Cloudflare) | 24 files, 482 passed |
+| Core under Bun 1.3 | 22 files, 447 passed |
+| Build | tsdown, `attw` clean, `publint` clean, 9 subpath entries + CLI with shebang |
+| Core bundle | 19.75 kB min+brotli (budget 20 kB) |
+| Tarball | 61 files, 378 kB packed: `dist/`, `README.md`, `README.es.md`, `llms.txt`, `LICENSE`, `package.json` |
+| Public API JSDoc | every exported declaration documented (TypeDoc-ready) |
+| Docs | README (EN/ES), 16 docs, `llms.txt`, Starlight site (22 pages, 0 broken internal links), 6 runnable examples verified end to end |

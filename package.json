@@ -1,6 +1,6 @@
 {
   "name": "watukuy",
-  "version": "0.0.0",
+  "version": "1.0.0-rc.0",
   "description": "Webhooks for APIs that don't have them. Embeddable, zero-dependency change-data-capture engine for pull-only third-party APIs.",
   "keywords": [
     "polling",
