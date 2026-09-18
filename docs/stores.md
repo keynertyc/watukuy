@@ -190,7 +190,7 @@ Rules every implementation must follow:
 Implement the interface above, then certify it with the contract suite:
 
 ```ts
-import { storeContractSuite } from 'watukuy/testing';
+import { storeContractSuite } from 'watukuy/testing/store-contract';
 import { MyStore } from './my-store.ts';
 
 storeContractSuite({

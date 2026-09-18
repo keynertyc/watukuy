@@ -148,7 +148,7 @@ Ports and store: `Clock`, `Random`, `Logger`, `Hooks`, `HookContext`, `StandardS
 | `describeChaos(report)` | One-line summary for CI logs. |
 | `KILL_POINTS` / `KillPoint` | `'before-acquire' \| 'after-fetch' \| 'after-commit' \| 'mid-dispatch' \| 'before-ack' \| 'after-ack-before-schedule' \| 'during-release' \| 'handler'`. |
 | `FaultyStore`, `SimulatedCrash` | The store wrapper and error class the harness uses; reusable in your own crash tests. |
-| `storeContractSuite({ name, create, destroy? })` | Conformance suite for `StateStore` implementations (`src/testing/store-contract.ts`; the `watukuy/testing` re-export is pending). |
+| `storeContractSuite({ name, create, destroy? })` | Conformance suite for `StateStore` implementations (import from `watukuy/testing/store-contract`, a separate subpath because it depends on vitest). |
 
 ## `watukuy/otel`
 

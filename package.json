@@ -82,7 +82,11 @@
       "types": "./dist/cli.d.ts",
       "default": "./dist/cli.js"
     },
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./testing/store-contract": {
+      "types": "./dist/testing-store-contract.d.ts",
+      "default": "./dist/testing-store-contract.js"
+    }
   },
   "scripts": {
     "build": "tsdown",
@@ -97,7 +101,7 @@
     "check:pack": "pnpm build && publint && attw --pack . --profile esm-only",
     "size": "size-limit",
     "docs:api": "typedoc",
-    "demo": "node examples/legacy-orders/main.ts",
+    "demo": "pnpm build && node examples/legacy-orders/main.ts",
     "changeset": "changeset",
     "version": "changeset version",
     "release": "pnpm build && changeset publish",

@@ -7,7 +7,8 @@
     "src/nestjs/index.ts",
     "src/otel/index.ts",
     "src/sinks/index.ts",
-    "src/testing/index.ts"
+    "src/testing/index.ts",
+    "src/testing/store-contract.ts"
   ],
   "out": "api-docs",
   "readme": "README.md",

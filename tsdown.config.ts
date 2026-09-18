@@ -15,6 +15,7 @@ export default defineConfig({
     otel: 'src/otel/index.ts',
     sinks: 'src/sinks/index.ts',
     testing: 'src/testing/index.ts',
+    'testing-store-contract': 'src/testing/store-contract.ts',
     cli: 'src/cli/index.ts',
   },
   format: ['esm'],
