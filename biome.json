@@ -11,8 +11,7 @@
     "lineWidth": 100
   },
   "javascript": {
-    "formatter": { "quoteStyle": "single", "trailingCommas": "all", "semicolons": "always" },
-    "parser": { "unsafeParameterDecoratorsEnabled": true }
+    "formatter": { "quoteStyle": "single", "trailingCommas": "all", "semicolons": "always" }
   },
   "linter": {
     "enabled": true,

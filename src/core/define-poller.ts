@@ -131,7 +131,7 @@ export function resolvePoller(config: AnyConfig): ResolvedPoller {
   const schema = config.schema;
   if (schema !== undefined) {
     const std = (schema as StandardSchemaV1)['~standard'];
-    if (!std || std.version !== 1 || typeof std.validate !== 'function') {
+    if (std?.version !== 1 || typeof std.validate !== 'function') {
       throw new ConfigError(
         `poller '${name}': schema must implement Standard Schema v1 ('~standard'.validate)`,
       );

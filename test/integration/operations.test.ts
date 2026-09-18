@@ -361,7 +361,7 @@ describe('validation, schema drift, poison halt', () => {
     const parked = await engine.parked.list('orders', { kind: 'invalid' });
     expect(parked).toHaveLength(1);
     expect(parked[0]?.error.message).toMatch(/total must be a number/);
-    expect((parked[0]?.item as Order).id).toBe('bad');
+    expect((parked[0]?.item as Order | undefined)?.id).toBe('bad');
   });
 
   it('bumping schemaVersion with rebaseline rewrites hashes silently; emit produces updates', async () => {

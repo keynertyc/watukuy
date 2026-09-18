@@ -288,7 +288,7 @@ export class MemoryStore implements StateStore {
     let n = 0;
     for (const id of ids) {
       const row = rec.parked.get(id);
-      if (!row || row.kind !== 'poison' || !row.event) continue;
+      if (row?.kind !== 'poison' || !row.event) continue;
       rec.outbox.set(row.event.id, {
         eventId: row.event.id,
         sequence: row.event.sequence,
