@@ -423,7 +423,11 @@ async function runCycle(
         summary.truncated = true;
         break;
       }
-      const fetchCursor = strategy.forFetch(cfg, cursor, clock.now());
+      // `overlap` (and any other fetch-time adjustment) applies to the first request of a cycle
+      // only; later pages continue from the exact keyset cursor, otherwise a busy API whose
+      // overlap window spans more than one page would re-fetch the same page until the cap.
+      const fetchCursor =
+        summary.pages === 0 ? strategy.forFetch(cfg, cursor, clock.now()) : cursor;
       const ctx: FetchContext<unknown, unknown> = {
         cursor: fetchCursor,
         page: summary.pages + 1,
@@ -716,11 +720,19 @@ async function runCycle(
       schedule = { ...state.schedule, lastError: serialized };
     }
     await deps.hooks.onError({ ...hookCtx, error: serialized, phase: 'fetch' });
-    deps.logger.warn(`${lane} cycle failed`, {
-      error: serialized.message,
-      code: serialized.code,
-      status: serialized.status,
-    });
+    if (isThrottle) {
+      deps.logger.info(`${lane} cycle throttled by the API`, {
+        status: serialized.status,
+        retryAfterMs,
+        nextDueAt: schedule.nextDueAt,
+      });
+    } else {
+      deps.logger.warn(`${lane} cycle failed`, {
+        error: serialized.message,
+        code: serialized.code,
+        status: serialized.status,
+      });
+    }
     try {
       await store.saveState(key, lease, { schedule, sequence, updatedAt: clock.now() });
     } catch (saveErr) {

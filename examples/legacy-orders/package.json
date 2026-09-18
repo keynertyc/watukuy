@@ -1,0 +1,14 @@
+{
+  "name": "@watukuy/example-legacy-orders",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Headline demo: a fake legacy ERP over node:http, polled by watukuy with a SQLite-backed cursor.",
+  "scripts": {
+    "start": "node main.ts"
+  },
+  "dependencies": {
+    "watukuy": "workspace:*",
+    "zod": "^4.6.5"
+  }
+}

@@ -102,6 +102,33 @@ describe('lifecycle (timestamp strategy, tick mode)', () => {
     expect(new Set(c.ids()).size).toBe(150);
   });
 
+  it('applies overlap only to the first request of a cycle, so catch-up paging terminates', async () => {
+    // 250 items share one timestamp; with overlap the rewound cursor would return page 1 forever
+    // if it were applied on every page.
+    const w = world({ items: 250 });
+    const orders = timestampPoller(w, {
+      cursor: {
+        strategy: 'timestamp',
+        field: 'updatedAt',
+        tieBreak: 'id',
+        initial: null,
+        overlap: '2m',
+      },
+      maxPagesPerCycle: 10,
+    });
+    const engine = engineFor(w, { orders });
+    const c = collector();
+    engine.on('orders', c.handler);
+    const t = await engine.tick();
+    expect(c.events).toHaveLength(250);
+    expect(w.api.calls).toBe(3);
+    expect(t.polled[0]?.items).toBe(250);
+    // Next cycle re-scans the overlap window: same items, no duplicate events.
+    await w.clock.advance(5_000);
+    await engine.tick();
+    expect(c.events).toHaveLength(250);
+  });
+
   it('honours maxPagesPerCycle and continues immediately (truncated → due now)', async () => {
     const w = world({ items: 250 });
     const orders = timestampPoller(w, { maxPagesPerCycle: 1 });

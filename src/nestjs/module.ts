@@ -50,6 +50,14 @@ export interface WatukuyModuleOptions extends Omit<EngineOptions<PollerMap>, 'po
   mode?: WatukuyModuleMode | undefined;
   /** Passed to `engine.stop()` on shutdown. @default { drain: true, timeout: '30s' } */
   stop?: StopOptions | undefined;
+  /** Run `store.migrate()` (idempotent) at bootstrap before starting. @default true */
+  migrate?: boolean | undefined;
+  /**
+   * Call `store.close()` after the engine stopped. Off by default: the module does not close a
+   * client it did not open (pools are often shared).
+   * @default false
+   */
+  closeStore?: boolean | undefined;
 }
 
 /**
@@ -329,13 +337,17 @@ export class WatukuyModule implements OnApplicationBootstrap, BeforeApplicationS
 
   /** Stop the engine with the configured `stop` options. Idempotent. */
   beforeApplicationShutdown(): Promise<void> {
-    if (!this.stopPromise) {
-      this.stopPromise = this.engine.stop(this.options.stop ?? DEFAULT_STOP);
-    }
+    if (!this.stopPromise) this.stopPromise = this.shutdown();
     return this.stopPromise;
   }
 
+  private async shutdown(): Promise<void> {
+    await this.engine.stop(this.options.stop ?? DEFAULT_STOP);
+    if (this.options.closeStore === true) await this.options.store.close();
+  }
+
   private async bootstrap(): Promise<void> {
+    if (this.options.migrate !== false) await this.engine.migrate();
     this.explorer.attach(this.engine, Object.keys(this.pollers));
     if ((this.options.mode ?? 'daemon') === 'daemon') await this.engine.start();
   }
