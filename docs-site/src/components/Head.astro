@@ -1,0 +1,13 @@
+---
+// Starlight <Head> override: keeps the default head and adds the client-side Mermaid renderer.
+// Mermaid is only downloaded on pages that contain a <pre class="mermaid"> block.
+import Default from '@astrojs/starlight/components/Head.astro';
+---
+
+<Default><slot /></Default>
+
+<script>
+  import { renderMermaidBlocks } from '../scripts/mermaid-client';
+
+  renderMermaidBlocks();
+</script>

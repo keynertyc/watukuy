@@ -101,6 +101,7 @@
     "check:pack": "pnpm build && publint && attw --pack . --profile esm-only",
     "size": "size-limit",
     "docs:api": "typedoc",
+    "docs:site": "pnpm --dir docs-site build",
     "demo": "pnpm build && node examples/legacy-orders/main.ts",
     "changeset": "changeset",
     "version": "changeset version",

@@ -2,6 +2,7 @@ packages:
   - '.'
   - 'examples/*'
   - 'portability/*'
+  - 'docs-site'
 allowBuilds:
   cpu-features: false
   esbuild: true
