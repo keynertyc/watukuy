@@ -101,7 +101,9 @@
     "changeset": "changeset",
     "version": "changeset version",
     "release": "pnpm build && changeset publish",
-    "prepack": "pnpm build"
+    "prepack": "pnpm build",
+    "test:workerd": "pnpm --dir portability/workerd exec vitest run",
+    "test:bun": "bunx vitest run src/core src/scheduler src/cursor src/diff src/budget src/http src/validate src/testing --typecheck.enabled=false"
   },
   "peerDependencies": {
     "@nestjs/common": ">=11 <13",

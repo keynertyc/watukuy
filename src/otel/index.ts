@@ -1,2 +1,18 @@
-// placeholder: implemented in a later milestone
-export {};
+/**
+ * `watukuy/otel` — OpenTelemetry spans and metrics for watukuy (PLAN §5.13).
+ *
+ * Requires the optional peer `@opentelemetry/api`. Without a registered SDK the API no-ops, so the
+ * hooks are safe to ship in every environment.
+ *
+ * @example
+ * ```ts
+ * import { createWatukuy } from 'watukuy';
+ * import { otelHooks } from 'watukuy/otel';
+ *
+ * const engine = createWatukuy({ pollers: [orders], hooks: [otelHooks()] });
+ * ```
+ *
+ * @packageDocumentation
+ */
+
+export { type OtelHooksOptions, otelHooks } from './hooks.ts';

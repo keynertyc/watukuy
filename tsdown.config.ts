@@ -1,4 +1,9 @@
+import { readFileSync } from 'node:fs';
 import { defineConfig } from 'tsdown';
+
+const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as {
+  version: string;
+};
 
 export default defineConfig({
   entry: {
@@ -19,6 +24,7 @@ export default defineConfig({
   sourcemap: true,
   clean: true,
   fixedExtension: false,
+  define: { __WATUKUY_VERSION__: JSON.stringify(pkg.version) },
   publint: true,
   attw: { profile: 'esm-only' },
 });

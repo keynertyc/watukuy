@@ -35,4 +35,5 @@ export type * from './core/poller-types.ts';
 export type { Clock, HookContext, Hooks, Logger, Random } from './core/ports.ts';
 export type { StandardSchemaV1 } from './core/standard-schema.ts';
 export type * from './core/store-types.ts';
+export { VERSION } from './core/version.ts';
 export { emptyPollerState, MemoryStore } from './stores/memory/index.ts';

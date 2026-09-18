@@ -1,8 +1,8 @@
 import {
   type Attributes,
   type Context,
-  context,
   type Counter,
+  context,
   type Histogram,
   type Meter,
   metrics,
@@ -11,24 +11,30 @@ import {
   type Span,
   type SpanStatus,
   SpanStatusCode,
-  trace,
   type Tracer,
+  trace,
 } from '@opentelemetry/api';
 import type { HookContext, Hooks } from '../core/ports.ts';
 import type { PKey } from '../core/store-types.ts';
+import { VERSION } from '../core/version.ts';
 
 /** Instrumentation scope name for the default tracer and meter. */
 const SCOPE_NAME = 'watukuy';
 /** Instrumentation scope version. Mirrors `package.json#version`. */
-const SCOPE_VERSION = '0.0.0';
+const SCOPE_VERSION = VERSION;
 
 /** `watukuy.circuit.state` values. */
 const CIRCUIT_CLOSED = 0;
 const CIRCUIT_HALF_OPEN = 1;
 const CIRCUIT_OPEN = 2;
 
+/** Separator for composite map keys; a control character cannot appear in a poller name. */
+const SEP = String.fromCharCode(0);
+
 /** Bucket boundaries (ms) shared by every duration histogram. */
-const DURATION_BUCKETS_MS = [5, 10, 25, 50, 100, 250, 500, 1_000, 2_500, 5_000, 10_000, 30_000, 60_000];
+const DURATION_BUCKETS_MS = [
+  5, 10, 25, 50, 100, 250, 500, 1_000, 2_500, 5_000, 10_000, 30_000, 60_000,
+];
 
 /**
  * Options for {@link otelHooks}.
@@ -63,8 +69,8 @@ type Arg<K extends keyof Hooks> = Parameters<NonNullable<Hooks[K]>>[0];
 /** A poll cycle whose span is open, keyed by poller + partition + lane. */
 interface ActivePoll {
   span: Span;
-  /** Set when `onError` fired for this key during the cycle. */
-  errored: boolean;
+  /** Message of the last non-dispatch error reported for this key; `null` while healthy. */
+  error: string | null;
 }
 
 /** One data point reported by an observable gauge. */
@@ -179,10 +185,13 @@ export function otelHooks(options: OtelHooksOptions = {}): Hooks {
     return active ? trace.setSpan(context.active(), active.span) : context.active();
   };
 
+  // Timestamps are passed as `Date` on purpose: the SDK reads a plain number that is smaller than
+  // `performance.now()` as a performance-relative timestamp, which would misplace the small epoch
+  // values a virtual clock produces.
   const endPoll = (key: string, active: ActivePoll, status: SpanStatus, endTime: number): void => {
     polls.delete(key);
     active.span.setStatus(status);
-    active.span.end(endTime);
+    active.span.end(new Date(endTime));
   };
 
   /** Emit a span that already finished; `durationMs` is anchored to `Date.now()`. */
@@ -190,10 +199,13 @@ export function otelHooks(options: OtelHooksOptions = {}): Hooks {
     const end = Date.now();
     const span = tracer.startSpan(
       name,
-      { startTime: end - Math.max(0, durationMs), attributes: { ...spanAttrs(ctx), ...attrs } },
+      {
+        startTime: new Date(end - Math.max(0, durationMs)),
+        attributes: { ...spanAttrs(ctx), ...attrs },
+      },
       parentOf(ctx),
     );
-    span.end(end);
+    span.end(new Date(end));
   };
 
   return {
@@ -209,10 +221,10 @@ export function otelHooks(options: OtelHooksOptions = {}): Hooks {
         );
       }
       const span = tracer.startSpan('watukuy.poll', {
-        startTime: ctx.startedAt,
+        startTime: new Date(ctx.startedAt),
         attributes: spanAttrs(ctx),
       });
-      polls.set(key, { span, errored: false });
+      polls.set(key, { span, error: null });
 
       // A cycle that starts while the circuit is open is the half-open probe.
       const state = circuit.get(pKey(ctx));
@@ -225,7 +237,7 @@ export function otelHooks(options: OtelHooksOptions = {}): Hooks {
       const s = ctx.summary;
       inst.pollDuration.record(s.durationMs, {
         ...metricAttrs(ctx),
-        'watukuy.outcome': active?.errored ? 'error' : 'ok',
+        'watukuy.outcome': active && active.error !== null ? 'error' : 'ok',
       });
       if (!active) return;
       active.span.setAttributes({
@@ -240,7 +252,9 @@ export function otelHooks(options: OtelHooksOptions = {}): Hooks {
       endPoll(
         key,
         active,
-        active.errored ? { code: SpanStatusCode.ERROR } : { code: SpanStatusCode.UNSET },
+        active.error === null
+          ? { code: SpanStatusCode.UNSET }
+          : { code: SpanStatusCode.ERROR, message: active.error },
         s.startedAt + s.durationMs,
       );
     }),
@@ -295,18 +309,19 @@ export function otelHooks(options: OtelHooksOptions = {}): Hooks {
       if (ctx.phase === 'dispatch') return;
       const active = polls.get(pollKey(ctx));
       if (!active) return;
-      active.errored = true;
+      active.error = ctx.error.message;
+      // `code` is deliberately not forwarded: the SDK would use it as `exception.type` instead of
+      // the error class name.
       active.span.recordException({
         name: ctx.error.name,
         message: ctx.error.message,
         ...(ctx.error.stack === undefined ? {} : { stack: ctx.error.stack }),
-        ...(ctx.error.code === undefined ? {} : { code: ctx.error.code }),
       });
     }),
 
     onLeaseLost: guard<Arg<'onLeaseLost'>>((ctx) => {
       inst.leaseLost.add(1, metricAttrs(ctx));
-      const prefix = `${pKey(ctx)} `;
+      const prefix = `${pKey(ctx)}${SEP}`;
       const now = Date.now();
       for (const [key, active] of polls) {
         if (key.startsWith(prefix)) {
@@ -349,12 +364,12 @@ function guard<T>(fn: (arg: T) => void): (arg: T) => void {
 
 /** Map key for a poll cycle: poller + partition + lane. */
 function pollKey(ctx: HookContext): string {
-  return `${ctx.poller} ${ctx.partition} ${ctx.lane}`;
+  return `${ctx.poller}${SEP}${ctx.partition}${SEP}${ctx.lane}`;
 }
 
 /** Map key for per-partition gauges: poller + partition. */
 function pKey(key: PKey): string {
-  return `${key.poller} ${key.partition}`;
+  return `${key.poller}${SEP}${key.partition}`;
 }
 
 function observeAll(result: ObservableResult, entries: Map<string, GaugeEntry>): void {
@@ -409,8 +424,14 @@ function createInstruments(meter: Meter): Instruments {
       description: 'Times a fetch waited for rate-budget tokens.',
       unit: '{wait}',
     }),
-    budgetWait: meter.createHistogram('watukuy.budget.wait', ms('Time spent waiting for rate-budget tokens.')),
-    deliverDuration: meter.createHistogram('watukuy.deliver.duration', ms('Handler duration for one successful delivery.')),
+    budgetWait: meter.createHistogram(
+      'watukuy.budget.wait',
+      ms('Time spent waiting for rate-budget tokens.'),
+    ),
+    deliverDuration: meter.createHistogram(
+      'watukuy.deliver.duration',
+      ms('Handler duration for one successful delivery.'),
+    ),
     circuitState: meter.createObservableGauge('watukuy.circuit.state', {
       description: 'Circuit breaker state per partition: 0 closed, 1 half-open, 2 open.',
       unit: '1',
