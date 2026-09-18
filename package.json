@@ -20,13 +20,13 @@
   ],
   "license": "MIT",
   "author": "Keyner",
-  "homepage": "https://github.com/keyner/watukuy#readme",
+  "homepage": "https://github.com/keynertyc/watukuy#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/keyner/watukuy.git"
+    "url": "git+https://github.com/keynertyc/watukuy.git"
   },
   "bugs": {
-    "url": "https://github.com/keyner/watukuy/issues"
+    "url": "https://github.com/keynertyc/watukuy/issues"
   },
   "type": "module",
   "sideEffects": false,

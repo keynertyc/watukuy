@@ -4,8 +4,8 @@
 > Change data capture for third-party APIs. Embeddable, zero dependencies, runs anywhere.
 
 [![npm version](https://img.shields.io/npm/v/watukuy.svg)](https://www.npmjs.com/package/watukuy)
-[![CI](https://github.com/keyner/watukuy/actions/workflows/ci.yml/badge.svg)](https://github.com/keyner/watukuy/actions/workflows/ci.yml)
-[![coverage](https://img.shields.io/codecov/c/github/keyner/watukuy)](https://codecov.io/gh/keyner/watukuy)
+[![CI](https://github.com/keynertyc/watukuy/actions/workflows/ci.yml/badge.svg)](https://github.com/keynertyc/watukuy/actions/workflows/ci.yml)
+[![coverage](https://img.shields.io/codecov/c/github/keynertyc/watukuy)](https://codecov.io/gh/keynertyc/watukuy)
 [![provenance](https://img.shields.io/badge/npm-provenance-blue)](https://www.npmjs.com/package/watukuy#provenance)
 [![bundle size](https://img.shields.io/bundlephobia/minzip/watukuy)](https://bundlephobia.com/package/watukuy)
 [![license](https://img.shields.io/npm/l/watukuy.svg)](./LICENSE)

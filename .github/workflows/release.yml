@@ -1,7 +1,9 @@
 name: Release
+# Manual for now: run this workflow from the Actions tab once npm publishing is configured
+# (see RELEASING.md). Switch `on:` to `push: { branches: [main] }` to publish automatically
+# whenever a changeset lands on main.
 on:
-  push:
-    branches: [main]
+  workflow_dispatch:
 permissions:
   contents: write
   pull-requests: write
@@ -11,16 +13,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with: { node-version: 24, cache: pnpm, registry-url: 'https://registry.npmjs.org' }
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
-      - name: Create release PR or publish (trusted publishing + provenance)
+      - name: Create release PR or publish (provenance via OIDC; trusted publishing or NPM_TOKEN)
         uses: changesets/action@v1
         with:
           publish: pnpm release
           version: pnpm version
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_CONFIG_PROVENANCE: 'true'
