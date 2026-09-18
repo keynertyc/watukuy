@@ -1,0 +1,23 @@
+packages:
+  - '.'
+  - 'examples/*'
+  - 'portability/*'
+  - 'docs-site'
+allowBuilds:
+  cpu-features: false
+  esbuild: true
+  msgpackr-extract: false
+  protobufjs: false
+  ssh2: false
+  workerd: true
+minimumReleaseAgeExclude:
+  - bullmq@6.3.7
+  - '@cloudflare/workerd-darwin-64@1.20260918.1'
+  - '@cloudflare/workerd-darwin-arm64@1.20260918.1'
+  - '@cloudflare/workerd-linux-64@1.20260918.1'
+  - '@cloudflare/workerd-linux-arm64@1.20260918.1'
+  - '@cloudflare/workerd-windows-64@1.20260918.1'
+  - '@cloudflare/workers-types@5.20260918.1'
+  - miniflare@5.20260918.0-alpha
+  - workerd@1.20260918.1
+  - wrangler@4.135.0

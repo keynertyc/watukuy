@@ -1,0 +1,14 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "watukuy-cron-tick",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-01",
+  // watukuy's core needs only WinterTC APIs; nodejs_compat is here for parity with real
+  // deployments that add `pg` (Hyperdrive) or a Redis client for a durable store.
+  "compatibility_flags": ["nodejs_compat"],
+  "triggers": {
+    // Every 5 minutes. `wrangler dev --test-scheduled` also exposes GET /__scheduled.
+    "crons": ["*/5 * * * *"]
+  },
+  "observability": { "enabled": true }
+}

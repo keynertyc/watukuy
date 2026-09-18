@@ -1,0 +1,14 @@
+{
+  "name": "@watukuy/portability-workerd",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Runs the watukuy core test suite inside Cloudflare's workerd runtime (see CONTRIBUTING.md).",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.22.0",
+    "vitest": "^4.1.0"
+  }
+}

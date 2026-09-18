@@ -1,0 +1,41 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.5.14/schema.json",
+  "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
+  "files": {
+    "includes": ["**", "!dist", "!coverage", "!node_modules", "!**/*.d.ts", "!pnpm-lock.yaml"]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100
+  },
+  "javascript": {
+    "formatter": { "quoteStyle": "single", "trailingCommas": "all", "semicolons": "always" },
+    "parser": { "unsafeParameterDecoratorsEnabled": true }
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "preset": "recommended",
+      "suspicious": { "noExplicitAny": "error", "noConsole": "off" },
+      "style": {
+        "noNonNullAssertion": "off",
+        "useImportType": "error",
+        "noParameterAssign": "off"
+      },
+      "complexity": { "noBannedTypes": "error" },
+      "correctness": { "noUnusedVariables": "error", "noUnusedImports": "error" }
+    }
+  },
+  "overrides": [
+    {
+      "includes": ["src/nestjs/**", "examples/nestjs-app/**"],
+      "linter": { "rules": { "style": { "useImportType": "off" } } }
+    },
+    {
+      "includes": ["**/*.test.ts", "test/**", "src/testing/**"],
+      "linter": { "rules": { "suspicious": { "noExplicitAny": "off" } } }
+    }
+  ]
+}

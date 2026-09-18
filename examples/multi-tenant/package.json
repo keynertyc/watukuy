@@ -1,0 +1,13 @@
+{
+  "name": "@watukuy/example-multi-tenant",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "partitions(): one poller, three tenants, per-tenant cursors, pause/resume of a single partition.",
+  "scripts": {
+    "start": "node main.ts"
+  },
+  "dependencies": {
+    "watukuy": "workspace:*"
+  }
+}

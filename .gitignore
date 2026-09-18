@@ -1,0 +1,20 @@
+node_modules/
+dist/
+coverage/
+*.log
+.DS_Store
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+.env
+.env.*
+docs-site/dist/
+docs-site/.astro/
+api-docs/
+
+# Working notes are never committed or published
+PLAN*.md
+*.plan.md
+.plan/
+NOTES*.md

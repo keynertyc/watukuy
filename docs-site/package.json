@@ -1,0 +1,23 @@
+{
+  "name": "watukuy-docs",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Documentation site for watukuy (Astro + Starlight). Content is copied from ../docs at build time.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "sync": "node scripts/sync-docs.mjs",
+    "predev": "node scripts/sync-docs.mjs",
+    "dev": "astro dev",
+    "prebuild": "node scripts/sync-docs.mjs",
+    "build": "astro build",
+    "preview": "astro preview"
+  },
+  "devDependencies": {
+    "@astrojs/starlight": "^0.42.0",
+    "astro": "^7.3.0",
+    "mermaid": "^12.0.0"
+  }
+}

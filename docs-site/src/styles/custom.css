@@ -1,0 +1,25 @@
+/*
+ * Mermaid diagrams arrive as <pre class="mermaid"> (see scripts/sync-docs.mjs) and are rendered
+ * to SVG in the browser (src/scripts/mermaid-client.ts). Undo code-block styling for them.
+ */
+.sl-markdown-content pre.mermaid {
+  background: none;
+  border: 0;
+  padding: 0;
+  margin-inline: auto;
+  overflow-x: auto;
+  text-align: center;
+}
+
+/* Until the script runs, the diagram source is visible as plain monospace text. */
+.sl-markdown-content pre.mermaid:not([data-processed]) {
+  text-align: start;
+  white-space: pre;
+  font-size: var(--sl-text-xs);
+  color: var(--sl-color-gray-3);
+}
+
+.sl-markdown-content pre.mermaid svg {
+  max-width: 100%;
+  height: auto;
+}

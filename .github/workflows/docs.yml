@@ -1,0 +1,57 @@
+name: Docs
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - 'README.md'
+      - 'ROADMAP.md'
+      - 'examples/README.md'
+      - 'docs-site/**'
+      - '.github/workflows/docs.yml'
+  pull_request:
+    paths:
+      - 'docs/**'
+      - 'README.md'
+      - 'ROADMAP.md'
+      - 'examples/README.md'
+      - 'docs-site/**'
+      - '.github/workflows/docs.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build:
+    name: build site
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm docs:site
+        env:
+          # https://keynertyc.github.io/watukuy — override both for a custom domain (DOCS_BASE=/).
+          DOCS_SITE: https://keynertyc.github.io
+          DOCS_BASE: /watukuy
+      - uses: actions/upload-pages-artifact@v3
+        with: { path: docs-site/dist }
+  deploy:
+    name: deploy to GitHub Pages
+    # Pages needs a public repository (or a paid plan); the build job still validates the site.
+    if: github.event_name != 'pull_request' && github.event.repository.private == false
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

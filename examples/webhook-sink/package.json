@@ -1,0 +1,13 @@
+{
+  "name": "@watukuy/example-webhook-sink",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Re-emit changes as Standard Webhooks (signed CloudEvents) to a local receiver that verifies them.",
+  "scripts": {
+    "start": "node main.ts"
+  },
+  "dependencies": {
+    "watukuy": "workspace:*"
+  }
+}
