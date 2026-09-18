@@ -33,5 +33,10 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_CONFIG_PROVENANCE: 'true'
-      - name: Verify
-        run: npm view "watukuy@${{ steps.meta.outputs.version }}" version dist.attestations.url
+      - name: Verify (retries while the registry propagates)
+        run: |
+          for i in $(seq 1 12); do
+            if npm view "watukuy@${{ steps.meta.outputs.version }}" version dist.attestations.url; then exit 0; fi
+            echo "not visible yet (attempt $i), waiting 10s"; sleep 10
+          done
+          echo "package not visible on the registry after 2 minutes" >&2; exit 1
