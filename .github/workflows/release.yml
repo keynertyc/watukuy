@@ -43,6 +43,20 @@ jobs:
           esac
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Graduate (stable only): drop the pre-release dist-tag, deprecate that version's pre-releases
+        if: steps.meta.outputs.published == 'false' && steps.meta.outputs.tag == 'latest'
+        run: |
+          set +e
+          V="${{ steps.meta.outputs.version }}"
+          for t in $(npm view watukuy dist-tags --json | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{for(const [k,v] of Object.entries(JSON.parse(s))) if(k!=="latest") console.log(k)})'); do
+            npm dist-tag rm watukuy "$t" && echo "removed dist-tag $t"
+          done
+          for pre in $(npm view watukuy versions --json | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const v=JSON.parse(s);(Array.isArray(v)?v:[v]).filter(x=>x.startsWith(process.argv[1]+"-")).forEach(x=>console.log(x))})' "$V"); do
+            npm deprecate "watukuy@$pre" "Superseded by watukuy@$V" && echo "deprecated $pre"
+          done
+          exit 0
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       - name: Verify (retries while the registry propagates)
         run: |
           for i in $(seq 1 12); do

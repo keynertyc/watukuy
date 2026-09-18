@@ -7,7 +7,7 @@
 [![CI](https://github.com/keynertyc/watukuy/actions/workflows/ci.yml/badge.svg)](https://github.com/keynertyc/watukuy/actions/workflows/ci.yml)
 [![coverage](https://img.shields.io/endpoint?url=https%3A%2F%2Fkeynertyc.github.io%2Fwatukuy%2Fbadges%2Fcoverage.json)](https://github.com/keynertyc/watukuy/actions/workflows/ci.yml)
 [![provenance](https://img.shields.io/badge/npm-provenance-blue)](https://www.npmjs.com/package/watukuy#provenance)
-[![core size](https://img.shields.io/endpoint?url=https%3A%2F%2Fkeynertyc.github.io%2Fwatukuy%2Fbadges%2Fsize.json)](https://github.com/keynertyc/watukuy/blob/main/.size-limit.json)
+[![core size](https://img.shields.io/endpoint?url=https%3A%2F%2Fkeynertyc.github.io%2Fwatukuy%2Fbadges%2Fsize.json%3Fv%3D1)](https://github.com/keynertyc/watukuy/blob/main/.size-limit.json)
 [![license](https://img.shields.io/github/license/keynertyc/watukuy)](./LICENSE)
 
 [Español](./README.es.md)

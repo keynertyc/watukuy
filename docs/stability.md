@@ -8,7 +8,7 @@ watukuy follows [Semantic Versioning 2.0](https://semver.org). From `1.0.0`:
 - **Minor**: new features, new options with defaults that preserve existing behavior, new exports, new store capabilities, new hooks, new metrics.
 - **Patch**: bug fixes and documentation. A fix that changes observable behavior is still a patch when the previous behavior contradicted the documented guarantees.
 
-Pre-release versions (`1.0.0-rc.x`) may change anything between releases.
+Pre-release versions (`x.y.z-beta.n`), when published, may change anything between releases.
 
 ## What is public API
 

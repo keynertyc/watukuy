@@ -1,22 +1,22 @@
 # watukuy
 
 > **Webhooks para las APIs que no los tienen.**
-> Captura de cambios (CDC) para APIs de terceros. Embebible, sin dependencias, corre en cualquier lado.
+> Captura de cambios (CDC) para APIs de terceros. Embebible, sin dependencias, se ejecuta en cualquier lugar.
 
 [![npm version](https://img.shields.io/npm/v/watukuy)](https://www.npmjs.com/package/watukuy)
 [![CI](https://github.com/keynertyc/watukuy/actions/workflows/ci.yml/badge.svg)](https://github.com/keynertyc/watukuy/actions/workflows/ci.yml)
 [![coverage](https://img.shields.io/endpoint?url=https%3A%2F%2Fkeynertyc.github.io%2Fwatukuy%2Fbadges%2Fcoverage.json)](https://github.com/keynertyc/watukuy/actions/workflows/ci.yml)
 [![provenance](https://img.shields.io/badge/npm-provenance-blue)](https://www.npmjs.com/package/watukuy#provenance)
-[![core size](https://img.shields.io/endpoint?url=https%3A%2F%2Fkeynertyc.github.io%2Fwatukuy%2Fbadges%2Fsize.json)](https://github.com/keynertyc/watukuy/blob/main/.size-limit.json)
+[![core size](https://img.shields.io/endpoint?url=https%3A%2F%2Fkeynertyc.github.io%2Fwatukuy%2Fbadges%2Fsize.json%3Fv%3D1)](https://github.com/keynertyc/watukuy/blob/main/.size-limit.json)
 [![license](https://img.shields.io/github/license/keynertyc/watukuy)](./LICENSE)
 
 [English](./README.md)
 
 ## El problema
 
-Bancos, ERPs, CRMs legacy, registros públicos, marketplaces, transportistas, sistemas de RR. HH. y el servicio del equipo de al lado no exponen **webhooks**. Entonces cada integración vuelve a armar la misma maquinaria frágil: un cursor que se salta filas cuando hay timestamps repetidos o cuando el proceso se cae, un diff que no detecta borrados, un loop de reintentos que convierte un `429` en un bloqueo, dos pods consultando el mismo endpoint dos veces, y un fan-out por tenant con N copias de todo lo anterior.
+Bancos, ERPs, CRMs legacy, registros públicos, marketplaces, transportistas, sistemas de RR. HH. y el servicio del equipo de al lado no exponen **webhooks**. Entonces cada integración vuelve a construir la misma maquinaria frágil: un cursor que se salta filas cuando hay timestamps repetidos o cuando el proceso se cae, un diff que no detecta borrados, un loop de reintentos que convierte un `429` en un bloqueo, dos pods consultando el mismo endpoint dos veces, y un fan-out por tenant con N copias de todo lo anterior.
 
-watukuy es un motor TypeScript embebible que convierte cualquier API de solo lectura (pull) en un stream tipado y correcto de eventos `created` / `updated` / `deleted`. Vos declarás cómo traer los datos y cómo identificar cada ítem. El motor se encarga de cursores, paginación, scheduling, diffing, deduplicación, presupuestos de rate limit, reintentos, leases, durabilidad y observabilidad.
+watukuy es un motor TypeScript embebible que convierte cualquier API de solo lectura (pull) en un stream tipado y correcto de eventos `created` / `updated` / `deleted`. Tú declaras cómo obtener los datos y cómo identificar cada ítem. El motor se encarga de cursores, paginación, scheduling, diffing, deduplicación, presupuestos de rate limit, reintentos, leases, durabilidad y observabilidad.
 
 ## Inicio rápido
 
@@ -78,14 +78,14 @@ engine.on('orders', async (event) => {
 await engine.start();
 ```
 
-Esa es toda la integración. Matá el proceso, escalalo a tres pods, recibí un `429`, traé una página con cincuenta `updatedAt` idénticos: el stream sigue siendo correcto.
+Esa es toda la integración. Mata el proceso, escálalo a tres pods, recibe un `429`, trae una página con cincuenta `updatedAt` idénticos: el stream sigue siendo correcto.
 
-## Qué obtenés
+## Qué obtienes
 
 - **Cinco estrategias de cursor**: `timestamp` (keyset compuesto con `lag` y `overlap`), `token`, `page`, `snapshotDiff` (diff completo, detecta borrados) y `custom`.
 - **Un motor de cambios de verdad**: hash canónico RFC 8785, atajo por `version`, selección con `fingerprint`, manejo de deriva de esquema con `schemaVersion`, `retain: 'payload'` para `previous`.
-- **Outbox transaccional**: cursor, delta del snapshot y eventos se confirman en una sola transacción del store. Caete donde quieras; el outbox se vuelve a entregar.
-- **Entrega sobre la que podés razonar**: claves de orden, concurrencia acotada, backoff exponencial con jitter completo, estacionamiento de eventos venenosos con `holdKey`, ack manual, `subscribe()` con backpressure.
+- **Outbox transaccional**: cursor, delta del snapshot y eventos se confirman en una sola transacción del store. Falla en cualquier punto; el outbox vuelve a entregar.
+- **Entrega sobre la que puedes razonar**: claves de orden, concurrencia acotada, backoff exponencial con jitter completo, estacionamiento de eventos venenosos con `holdKey`, ack manual, `subscribe()` con backpressure.
 - **Scheduling adaptativo y educado**: intervalo AIMD, pacing proactivo a partir de los headers `RateLimit`, esperas exactas por `Retry-After`, circuit breaker por poller.
 - **Presupuestos de rate limit compartidos** entre pollers y tenants, con prioridad por lane (live > reconcile > backfill > replay) y fairness round-robin o ponderada.
 - **Leases con fencing**: un solo poller activo por `(poller, partition)` entre instancias; un titular obsoleto no puede escribir.
@@ -112,13 +112,13 @@ El README las promete y la suite de tests las demuestra. Detalles en [docs/guara
 | G7 | **Aislamiento de fallas.** Un handler que falla nunca bloquea otras claves de orden. Los eventos venenosos se estacionan con contexto completo y pueden reintentarse o descartarse. |
 | G8 | **Determinista bajo test.** El reloj y la aleatoriedad son inyectables. La suite de tests tiene cero sleeps reales y cero red. |
 | G9 | **Seguro ante caídas en cada punto de corte.** Matar el proceso en cualquier frontera del store se recupera vía el outbox. Demostrado por la suite de caos con semillas. |
-| G10 | **Memoria acotada.** La concurrencia del handler y el backpressure del iterador acotan el trabajo en vuelo. Las páginas se procesan de a una, no se acumulan, salvo en `snapshotDiff`, que documenta su perfil de memoria. |
+| G10 | **Memoria acotada.** La concurrencia del handler y el backpressure del iterador acotan el trabajo en vuelo. Las páginas se procesan una por una, no se acumulan, salvo en `snapshotDiff`, que documenta su perfil de memoria. |
 
-**No garantías explícitas:** exactamente una vez (deduplicá por `event.id` en el consumidor); orden entre pollers o particiones; estados intermedios entre dos polls (A→B→A entre polls es invisible, compactación estándar de CDC); detección de borrados en estrategias incrementales sin un lane de reconcile.
+**No garantías explícitas:** exactamente una vez (deduplica por `event.id` en el consumidor); orden entre pollers o particiones; estados intermedios entre dos polls (A→B→A entre polls es invisible, compactación estándar de CDC); detección de borrados en estrategias incrementales sin un lane de reconcile.
 
-## Corre en cualquier lado
+## Se ejecuta en cualquier lugar
 
-El modo daemon es `engine.start()`. El modo serverless es `engine.tick()`: una pasada sobre los pollers vencidos, páginas acotadas, outbox drenado, schedules persistidos, leases liberados, y retorna. Ambos modos comparten el mismo estado persistido, así que podés mezclarlos.
+El modo daemon es `engine.start()`. El modo serverless es `engine.tick()`: una pasada sobre los pollers vencidos, páginas acotadas, outbox drenado, schedules persistidos, leases liberados, y retorna. Ambos modos comparten el mismo estado persistido, así que puedes mezclarlos.
 
 ```ts
 // Cloudflare Workers cron trigger, AWS Lambda on EventBridge, Vercel cron, k8s CronJob
@@ -134,12 +134,12 @@ El núcleo usa solo la API común mínima de WinterTC (`fetch`, `AbortSignal`, W
 | | cron / `@nestjs/schedule` / BullMQ | Nango / Airbyte | Hookdeck / Svix | Inngest / Temporal / Trigger.dev | **watukuy** |
 |---|---|---|---|---|---|
 | Qué es | scheduler | plataforma de integración | infraestructura de webhooks | ejecución durable | motor de sync embebible |
-| Cursores, diffing, dedup, borrados | lo construís vos | sí | n/a | lo construís vos | **sí** |
+| Cursores, diffing, dedup, borrados | lo construyes tú | sí | n/a | lo construyes tú | **sí** |
 | Corre dentro del proceso de tu app | sí | no | no | parcialmente | **sí** |
 | Los datos quedan en tu propio store | sí | DB de la plataforma | SaaS | mixto | **sí** |
 | Cero dependencias en runtime | sí | no | no | no | **sí (núcleo)** |
 | Modo serverless de una pasada | n/a | no | n/a | sí | **sí (`tick()`)** |
-| Seguridad multi-instancia | lo construís vos | sí | n/a | sí | **sí (leases con fencing)** |
+| Seguridad multi-instancia | lo construyes tú | sí | n/a | sí | **sí (leases con fencing)** |
 | Tipado de punta a punta | parcialmente | no | no | sí | **sí** |
 
 watukuy es complementario a colas y motores de ejecución durable: detecta cambios y emite eventos; BullMQ, Kafka, SQS, Inngest o Temporal los procesan. Trade-offs honestos en [docs/comparison.md](./docs/comparison.md).
@@ -175,11 +175,11 @@ Hexagonal: un núcleo de dominio puro, puertos para el store, el store de presup
 
 | Estrategia | Para APIs con | Cursor que ve `fetch` | Borrados |
 |---|---|---|---|
-| `timestamp` | un filtro `updated_since` | `{ value, tieBreak }` keyset compuesto; perillas `lag` y `overlap` | vía `reconcile` |
-| `token` | un cursor opaco `next` | `{ value }`; devolvé `cursor: null` cuando estás al día | vía `reconcile` |
+| `timestamp` | un filtro `updated_since` | `{ value, tieBreak }` keyset compuesto; parámetros `lag` y `overlap` | vía `reconcile` |
+| `token` | un cursor opaco `next` | `{ value }`; devuelve `cursor: null` cuando estés al día | vía `reconcile` |
 | `page` | números de página | `{ page }`; avanza mientras `hasMore`, se reinicia al terminar | vía `reconcile` |
 | `snapshotDiff` | nada | `null`; listado completo en cada ciclo, comparado contra el snapshot | **incluido** |
-| `custom` | cualquier otra cosa | tu propio tipo vía `customCursor()` | vía `reconcile` |
+| `custom` | cualquier otra cosa | tu propio tipo mediante `customCursor()` | vía `reconcile` |
 
 Cuándo usar cuál, y las trampas del timestamp (empates, lag, overlap, formatos epoch): [docs/cursors.md](./docs/cursors.md).
 
@@ -187,15 +187,15 @@ Cuándo usar cuál, y las trampas del timestamp (empates, lag, overlap, formatos
 
 - Los eventos se confirman en un **outbox** junto con el cursor, y después se despachan. La entrega es al menos una vez.
 - El dispatcher agrupa los eventos pendientes por **clave de orden** (por defecto `event.subject`, la identidad), corre hasta `delivery.concurrency` claves en paralelo, y es estrictamente secuencial dentro de una clave.
-- Un handler que falla se **reintenta** con backoff exponencial y jitter completo (`attempts: 5`, base `1s`, factor 2, máximo `2m`). `event.attempt` te dice qué intento es.
+- Un handler que falla se **reintenta** con backoff exponencial y jitter completo (`attempts: 5`, base `1s`, factor 2, máximo `2m`). `event.attempt` indica el número de intento.
 - Después del último intento el evento se **estaciona** como venenoso con el error y el historial de intentos. `holdKey: true` (por defecto) mantiene pendientes los eventos posteriores de esa clave para que el orden sobreviva; `engine.parked.retry()` los libera. `poison.action: 'halt'` abre el circuito del poller en su lugar.
-- **Deduplicá en el consumidor por `event.id`.** La reentrega tras una caída, los re-escaneos por overlap y los replays producen el mismo id para la misma observación.
+- **Deduplica en el consumidor por `event.id`.** La reentrega tras una caída, los re-escaneos por overlap y los replays producen el mismo id para la misma observación.
 
 Más en [docs/delivery.md](./docs/delivery.md).
 
 ## Multi-instancia y multi-tenant
 
-Corré tantas réplicas como quieras contra un solo store. Cada `(poller, partition)` está protegido por un lease con un epoch de fencing: exactamente una instancia lo consulta, y un titular que perdió su lease no puede escribir. Para conectores multi-tenant, `partitions()` devuelve una entrada por tenant; cada una tiene su propio cursor, lease, schedule, circuito, outbox y eventos estacionados, compartiendo la definición, el handler y el presupuesto. Las particiones removidas se pausan, no se borran. Ver [docs/multi-tenant.md](./docs/multi-tenant.md).
+Ejecuta tantas réplicas como quieras contra un solo store. Cada `(poller, partition)` está protegido por un lease con un epoch de fencing: exactamente una instancia lo consulta, y un titular que perdió su lease no puede escribir. Para conectores multi-tenant, `partitions()` devuelve una entrada por tenant; cada una tiene su propio cursor, lease, schedule, circuito, outbox y eventos estacionados, compartiendo la definición, el handler y el presupuesto. Las particiones removidas se pausan, no se borran. Ver [docs/multi-tenant.md](./docs/multi-tenant.md).
 
 ## Observabilidad
 
@@ -205,7 +205,7 @@ Corré tantas réplicas como quieras contra un solo store. Cada `(poller, partit
 
 Ver [docs/observability.md](./docs/observability.md).
 
-## Cómo testear tus pollers
+## Cómo probar tus pollers
 
 ```ts
 import { createWatukuy, definePoller } from 'watukuy';
@@ -244,7 +244,7 @@ npm install watukuy      # pnpm add watukuy / yarn add watukuy / bun add watukuy
 
 - **Node >= 22.12**. CI corre Node 22, 24 y 26.
 - **Solo ESM.** Los proyectos CommonJS (incluidas las apps NestJS compiladas a CJS) usan `require('watukuy')`, que funciona nativamente en Node 22.12+ vía `require(esm)`. No hay build dual.
-- Peers opcionales solo para el subpath que importás: `pg` para `watukuy/store-postgres`; `redis` o `ioredis` para `watukuy/store-redis`; `@opentelemetry/api` para `watukuy/otel`; `@nestjs/common` y `@nestjs/core` (`>=11 <13`) para `watukuy/nestjs`. `watukuy/store-sqlite` usa `node:sqlite` y no necesita nada.
+- Peers opcionales solo para el subpath que importas: `pg` para `watukuy/store-postgres`; `redis` o `ioredis` para `watukuy/store-redis`; `@opentelemetry/api` para `watukuy/otel`; `@nestjs/common` y `@nestjs/core` (`>=11 <13`) para `watukuy/nestjs`. `watukuy/store-sqlite` usa `node:sqlite` y no necesita nada.
 - Cero dependencias en runtime en el paquete publicado. Sin scripts de instalación. Publicado con provenance de npm.
 
 ## Documentación
@@ -262,7 +262,7 @@ npm install watukuy      # pnpm add watukuy / yarn add watukuy / bun add watukuy
 | [observability.md](./docs/observability.md) | Payloads de los hooks, OpenTelemetry, `inspect()`, endpoints de salud |
 | [http-helper.md](./docs/http-helper.md) | `ctx.http`: validadores, headers de rate limit, Retry-After, Problem Details, redacción |
 | [recipes.md](./docs/recipes.md) | BullMQ, SQS, Kafka, webhooks firmados, Inngest/Temporal, APIs sin ids, timestamps epoch, GraphQL |
-| [runbook.md](./docs/runbook.md) | Operación: trigger, pausa, backfill, replay, reset, estacionados, leases trabados, circuitos, deriva |
+| [runbook.md](./docs/runbook.md) | Operación: trigger, pausa, backfill, replay, reset, estacionados, leases bloqueados, circuitos, deriva |
 | [comparison.md](./docs/comparison.md) | Comparación ampliada con trade-offs |
 | [faq.md](./docs/faq.md) | Preguntas frecuentes |
 | [stability.md](./docs/stability.md) | Política de semver, API pública, runtimes soportados, deprecaciones, seguridad |
