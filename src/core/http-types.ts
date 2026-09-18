@@ -12,7 +12,10 @@ export interface HttpRequestOptions {
   /** Send and store ETag / Last-Modified validators. @default true for GET */
   validators?: boolean | undefined;
   timeout?: Duration | undefined;
-  /** Return non-2xx responses instead of throwing `HttpError`. @default false */
+  /**
+   * Throw `HttpError` on non-2xx responses (304 excluded). Set to `false` to receive the
+   * `HttpResponse` instead. @default true
+   */
   throwOnError?: boolean | undefined;
 }
 

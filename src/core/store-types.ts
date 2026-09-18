@@ -39,8 +39,8 @@ export interface LaneCursor {
   done?: boolean;
   /** Reconcile: last completed run. */
   lastRunAt?: number | null;
-  /** Mid-cycle progress for `snapshotDiff` and `page` strategies (identities seen so far). */
-  progress?: unknown;
+  /** Backfill only: re-emit even when identity/version is already known. */
+  force?: boolean;
 }
 
 export interface PollerState {
@@ -116,8 +116,8 @@ export interface CommitBatch {
   events: OutboxRow[];
   /** Also append to the event log when the poller has one. */
   log: boolean;
-  /** Mid-cycle: replace the whole snapshot at the end of a `snapshotDiff` cycle. */
-  snapshot?: { keepIdentities: string[] } | undefined;
+  /** Parked rows written in the same transaction (invalid items quarantined during this page). */
+  parked?: ParkedRow[] | undefined;
 }
 
 export interface StoreCapabilities {
@@ -149,14 +149,21 @@ export interface StateStore {
   /** Administrative write without a lease (pause/resume/reset from the CLI). */
   saveStateUnfenced(key: PKey, patch: Partial<Omit<PollerState, 'createdAt'>>): Promise<void>;
   listKeys(poller?: string): Promise<PKey[]>;
+  /** Remove every row for the key: state, lease, items, outbox, parked, validators, log. */
   deleteKey(key: PKey): Promise<void>;
+  /** Drop the item snapshot only (administrative, `resetCursor({ clearSnapshot: true })`). */
+  clearItems(key: PKey): Promise<void>;
 
   loadVersions(key: PKey, identities: string[]): Promise<Map<string, ItemRow>>;
   streamIdentities(key: PKey, batchSize?: number): AsyncIterable<string[]>;
   countItems(key: PKey): Promise<number>;
 
   commitPoll(key: PKey, lease: Lease, batch: CommitBatch): Promise<void>;
-  loadPending(key: PKey, limit: number, now: number): Promise<OutboxRow[]>;
+  /**
+   * Pending outbox rows in `sequence` order, regardless of `nextAttemptAt` (the dispatcher decides
+   * when a row is eligible so per-key ordering is preserved).
+   */
+  loadPending(key: PKey, limit: number): Promise<OutboxRow[]>;
   countPending(key: PKey): Promise<number>;
   ackEvents(key: PKey, lease: Lease, eventIds: string[]): Promise<void>;
   recordAttempt(

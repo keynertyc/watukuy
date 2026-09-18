@@ -81,17 +81,14 @@ export interface CustomCursorConfig<C = unknown> {
   strategy: 'custom';
   initial: C;
   /** Derive the next cursor from a fetched page. `done: true` ends the cycle. */
-  advance: (input: {
+  advance(input: {
     cursor: C;
     items: unknown[];
     pageCursor: string | null | undefined;
     hasMore: boolean;
-  }) => {
-    cursor: C;
-    done: boolean;
-  };
-  serialize?: ((cursor: C) => string) | undefined;
-  deserialize?: ((raw: string) => C) | undefined;
+  }): { cursor: C; done: boolean };
+  serialize?(cursor: C): string;
+  deserialize?(raw: string): C;
 }
 
 export type CursorConfig =
@@ -101,7 +98,7 @@ export type CursorConfig =
   | SnapshotDiffCursorConfig
   | CustomCursorConfig<unknown>;
 
-export type CursorStrategy = CursorConfig['strategy'];
+export type CursorStrategyName = CursorConfig['strategy'];
 
 /** The runtime cursor value seen by `fetch`, derived from the strategy. */
 export type CursorValue<C extends CursorConfig> = C extends TimestampCursorConfig
