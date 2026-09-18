@@ -1,0 +1,8 @@
+[
+  {
+    "name": "core (watukuy)",
+    "path": "dist/index.js",
+    "limit": "20 kB",
+    "import": "{ createWatukuy, definePoller, MemoryStore }"
+  }
+]

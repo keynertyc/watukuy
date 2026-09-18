@@ -1,0 +1,17 @@
+name: Nightly chaos
+on:
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  chaos:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: WATUKUY_CHAOS_SEEDS=50 pnpm vitest run test/chaos

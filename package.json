@@ -1,0 +1,179 @@
+{
+  "name": "watukuy",
+  "version": "0.0.0",
+  "description": "Webhooks for APIs that don't have them. Embeddable, zero-dependency change-data-capture engine for pull-only third-party APIs.",
+  "keywords": [
+    "polling",
+    "webhooks",
+    "cdc",
+    "change-data-capture",
+    "sync",
+    "integration",
+    "cursor",
+    "pagination",
+    "rate-limit",
+    "outbox",
+    "nestjs",
+    "typescript",
+    "events",
+    "serverless"
+  ],
+  "license": "MIT",
+  "author": "Keyner",
+  "homepage": "https://github.com/keyner/watukuy#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/keyner/watukuy.git"
+  },
+  "bugs": {
+    "url": "https://github.com/keyner/watukuy/issues"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=22.12"
+  },
+  "packageManager": "pnpm@12.4.2",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "llms.txt"
+  ],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "watukuy": "./dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./store-sqlite": {
+      "types": "./dist/store-sqlite.d.ts",
+      "default": "./dist/store-sqlite.js"
+    },
+    "./store-postgres": {
+      "types": "./dist/store-postgres.d.ts",
+      "default": "./dist/store-postgres.js"
+    },
+    "./store-redis": {
+      "types": "./dist/store-redis.d.ts",
+      "default": "./dist/store-redis.js"
+    },
+    "./nestjs": {
+      "types": "./dist/nestjs.d.ts",
+      "default": "./dist/nestjs.js"
+    },
+    "./otel": {
+      "types": "./dist/otel.d.ts",
+      "default": "./dist/otel.js"
+    },
+    "./sinks": {
+      "types": "./dist/sinks.d.ts",
+      "default": "./dist/sinks.js"
+    },
+    "./testing": {
+      "types": "./dist/testing.d.ts",
+      "default": "./dist/testing.js"
+    },
+    "./cli": {
+      "types": "./dist/cli.d.ts",
+      "default": "./dist/cli.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "typecheck": "tsc -p tsconfig.json",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:chaos": "WATUKUY_CHAOS_SEEDS=50 vitest run test/chaos",
+    "check": "pnpm typecheck && pnpm lint && pnpm test",
+    "check:pack": "pnpm build && publint && attw --pack . --profile esm-only",
+    "size": "size-limit",
+    "docs:api": "typedoc",
+    "demo": "node examples/legacy-orders/main.ts",
+    "changeset": "changeset",
+    "version": "changeset version",
+    "release": "pnpm build && changeset publish",
+    "prepack": "pnpm build"
+  },
+  "peerDependencies": {
+    "@nestjs/common": ">=11 <13",
+    "@nestjs/core": ">=11 <13",
+    "@nestjs/terminus": ">=11 <13",
+    "@opentelemetry/api": "^1.9.0",
+    "ioredis": ">=5",
+    "pg": ">=8",
+    "redis": ">=4",
+    "reflect-metadata": "^0.2.0",
+    "vitest": ">=3"
+  },
+  "peerDependenciesMeta": {
+    "@nestjs/common": {
+      "optional": true
+    },
+    "@nestjs/core": {
+      "optional": true
+    },
+    "@nestjs/terminus": {
+      "optional": true
+    },
+    "@opentelemetry/api": {
+      "optional": true
+    },
+    "ioredis": {
+      "optional": true
+    },
+    "pg": {
+      "optional": true
+    },
+    "redis": {
+      "optional": true
+    },
+    "reflect-metadata": {
+      "optional": true
+    },
+    "vitest": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.5",
+    "@arethetypeswrong/core": "^0.18.5",
+    "@biomejs/biome": "^2.5.14",
+    "@changesets/cli": "^3.0.3",
+    "@electric-sql/pglite": "^0.5.8",
+    "@nestjs/common": ">=11 <13",
+    "@nestjs/core": ">=11 <13",
+    "@nestjs/terminus": ">=11 <13",
+    "@nestjs/testing": "^12.0.3",
+    "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/sdk-metrics": "^2.11.0",
+    "@opentelemetry/sdk-trace-base": "^2.11.0",
+    "@size-limit/preset-small-lib": "^14.0.0",
+    "@standard-schema/spec": "^1.1.0",
+    "@testcontainers/postgresql": "^12.1.0",
+    "@testcontainers/redis": "^12.1.0",
+    "@types/node": "^26.6.1",
+    "@types/pg": "^8.23.1",
+    "@vitest/coverage-v8": "^5.0.1",
+    "ioredis": ">=5",
+    "pg": ">=8",
+    "publint": "^0.3.24",
+    "redis": ">=4",
+    "reflect-metadata": "^0.2.0",
+    "rxjs": "^7.8.2",
+    "size-limit": "^14.0.0",
+    "tsdown": "^0.23.0",
+    "typedoc": "^0.28.20",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.1",
+    "zod": "^4.6.5"
+  }
+}

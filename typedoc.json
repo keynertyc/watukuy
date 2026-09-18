@@ -1,0 +1,16 @@
+{
+  "entryPoints": [
+    "src/index.ts",
+    "src/stores/sqlite/index.ts",
+    "src/stores/postgres/index.ts",
+    "src/stores/redis/index.ts",
+    "src/nestjs/index.ts",
+    "src/otel/index.ts",
+    "src/sinks/index.ts",
+    "src/testing/index.ts"
+  ],
+  "out": "api-docs",
+  "readme": "README.md",
+  "excludePrivate": true,
+  "excludeInternal": true
+}
