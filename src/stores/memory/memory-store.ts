@@ -87,6 +87,11 @@ export class MemoryStore implements StateStore {
     return rec;
   }
 
+  /** Read-only lookup: never creates a record, so `listKeys()` only reports written keys. */
+  private peek(key: PKey): KeyRecord | undefined {
+    return this.records.get(this.id(key));
+  }
+
   private fence(key: PKey, rec: KeyRecord, lease: Lease): void {
     if (!rec.lease || rec.lease.owner !== lease.owner || rec.lease.epoch !== lease.epoch) {
       throw new LeaseLostError(key.poller, key.partition, lease.epoch);
@@ -166,12 +171,13 @@ export class MemoryStore implements StateStore {
   }
 
   async clearItems(key: PKey): Promise<void> {
-    this.record(key).items.clear();
+    this.peek(key)?.items.clear();
   }
 
   async loadVersions(key: PKey, identities: string[]): Promise<Map<string, ItemRow>> {
-    const rec = this.record(key);
     const out = new Map<string, ItemRow>();
+    const rec = this.peek(key);
+    if (!rec) return out;
     for (const id of identities) {
       const row = rec.items.get(id);
       if (row) out.set(id, clone(row));
@@ -180,13 +186,14 @@ export class MemoryStore implements StateStore {
   }
 
   async *streamIdentities(key: PKey, batchSize = 1000): AsyncIterable<string[]> {
-    const rec = this.record(key);
+    const rec = this.peek(key);
+    if (!rec) return;
     const all = Array.from(rec.items.keys());
     for (let i = 0; i < all.length; i += batchSize) yield all.slice(i, i + batchSize);
   }
 
   async countItems(key: PKey): Promise<number> {
-    return this.record(key).items.size;
+    return this.peek(key)?.items.size ?? 0;
   }
 
   async commitPoll(key: PKey, lease: Lease, batch: CommitBatch): Promise<void> {
@@ -217,7 +224,8 @@ export class MemoryStore implements StateStore {
   }
 
   async loadPending(key: PKey, limit: number): Promise<OutboxRow[]> {
-    const rec = this.record(key);
+    const rec = this.peek(key);
+    if (!rec) return [];
     return Array.from(rec.outbox.values())
       .filter((r) => r.status === 'pending')
       .sort((a, b) => a.sequence - b.sequence)
@@ -227,7 +235,7 @@ export class MemoryStore implements StateStore {
 
   async countPending(key: PKey): Promise<number> {
     let n = 0;
-    for (const r of this.record(key).outbox.values()) if (r.status === 'pending') n++;
+    for (const r of this.peek(key)?.outbox.values() ?? []) if (r.status === 'pending') n++;
     return n;
   }
 
@@ -264,18 +272,19 @@ export class MemoryStore implements StateStore {
     key: PKey,
     opts: { kind?: 'poison' | 'invalid'; limit?: number } = {},
   ): Promise<ParkedRow[]> {
-    const rows = Array.from(this.record(key).parked.values())
+    const rows = Array.from(this.peek(key)?.parked.values() ?? [])
       .filter((r) => opts.kind === undefined || r.kind === opts.kind)
       .sort((a, b) => a.parkedAt - b.parkedAt);
     return rows.slice(0, opts.limit ?? rows.length).map(clone);
   }
 
   async countParked(key: PKey): Promise<number> {
-    return this.record(key).parked.size;
+    return this.peek(key)?.parked.size ?? 0;
   }
 
   async retryParked(key: PKey, ids: string[]): Promise<number> {
-    const rec = this.record(key);
+    const rec = this.peek(key);
+    if (!rec) return 0;
     let n = 0;
     for (const id of ids) {
       const row = rec.parked.get(id);
@@ -297,7 +306,8 @@ export class MemoryStore implements StateStore {
   }
 
   async discardParked(key: PKey, ids: string[]): Promise<number> {
-    const rec = this.record(key);
+    const rec = this.peek(key);
+    if (!rec) return 0;
     let n = 0;
     for (const id of ids) if (rec.parked.delete(id)) n++;
     return n;
@@ -305,12 +315,13 @@ export class MemoryStore implements StateStore {
 
   async heldKeys(key: PKey): Promise<Set<string>> {
     const out = new Set<string>();
-    for (const r of this.record(key).parked.values()) if (r.holdKey !== null) out.add(r.holdKey);
+    for (const r of this.peek(key)?.parked.values() ?? [])
+      if (r.holdKey !== null) out.add(r.holdKey);
     return out;
   }
 
   async getValidator(key: PKey, urlHash: string): Promise<Validator | null> {
-    const v = this.record(key).validators.get(urlHash);
+    const v = this.peek(key)?.validators.get(urlHash);
     return v ? clone(v) : null;
   }
 
@@ -330,8 +341,8 @@ export class MemoryStore implements StateStore {
     range: { afterSequence?: number; fromTime?: number; toTime?: number },
     limit: number,
   ): Promise<LoggedEvent[]> {
-    return this.record(key)
-      .log.filter(
+    return (this.peek(key)?.log ?? [])
+      .filter(
         (e) =>
           (range.afterSequence === undefined || e.sequence > range.afterSequence) &&
           (range.fromTime === undefined || e.createdAt >= range.fromTime) &&
@@ -343,7 +354,8 @@ export class MemoryStore implements StateStore {
   }
 
   async pruneLog(key: PKey, olderThan: number): Promise<number> {
-    const rec = this.record(key);
+    const rec = this.peek(key);
+    if (!rec) return 0;
     const before = rec.log.length;
     rec.log = rec.log.filter((e) => e.createdAt >= olderThan);
     return before - rec.log.length;
