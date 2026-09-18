@@ -20,7 +20,8 @@ GitHub Actions with npm provenance. Nothing is published from a laptop.
 
 * Every user-visible change lands with a changeset (`pnpm changeset`).
 * Pre-releases: the repo is in `rc` pre mode (`.changeset/pre.json`). `pnpm version` produces
-  `1.0.0-rc.N`; the Release workflow publishes under the `rc` dist-tag.
+  `1.0.0-rc.N`; commit the bump and run the Release workflow, which publishes the committed
+  version under the `rc` dist-tag (derived from the version) and skips versions already on npm.
 * Going stable: `pnpm exec changeset pre exit`, commit, then `pnpm version` produces `1.0.0` and
   the workflow publishes to `latest`.
 * Tag the commit (`git tag -a vX.Y.Z -m "watukuy X.Y.Z"`), push tags, and create the GitHub

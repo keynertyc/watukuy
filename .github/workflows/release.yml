@@ -1,32 +1,37 @@
 name: Release
-# Manual for now: run this workflow from the Actions tab once npm publishing is configured
-# (see RELEASING.md). Switch `on:` to `push: { branches: [main] }` to publish automatically
-# whenever a changeset lands on main.
+# Publishes the version committed in package.json (versioning is done locally with Changesets;
+# see RELEASING.md). Manual for now: run it from the Actions tab. Switch `on:` to
+# `push: { branches: [main] }` to publish automatically whenever main carries an unpublished version.
 on:
   workflow_dispatch:
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
   id-token: write
 jobs:
   release:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with: { fetch-depth: 0 }
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with: { node-version: 24, cache: pnpm, registry-url: 'https://registry.npmjs.org' }
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
-      - name: Create release PR or publish (provenance via OIDC; trusted publishing or NPM_TOKEN)
-        uses: changesets/action@v1
-        with:
-          publish: pnpm release
-          version: pnpm version
-          # Tags and GitHub releases are created manually (see RELEASING.md).
-          createGithubReleases: false
+      - name: Resolve version and dist-tag
+        id: meta
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          TAG=$(node -p "const v=require('./package.json').version; v.includes('-') ? v.split('-')[1].split('.')[0] : 'latest'")
+          if npm view "watukuy@${VERSION}" version >/dev/null 2>&1; then PUBLISHED=true; else PUBLISHED=false; fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "published=$PUBLISHED" >> "$GITHUB_OUTPUT"
+          echo "watukuy@$VERSION → dist-tag '$TAG' (already published: $PUBLISHED)"
+      - name: Publish to npm with provenance (trusted publishing or NPM_TOKEN)
+        if: steps.meta.outputs.published == 'false'
+        run: pnpm publish --access public --tag "${{ steps.meta.outputs.tag }}" --provenance --no-git-checks
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_CONFIG_PROVENANCE: 'true'
+      - name: Verify
+        run: npm view "watukuy@${{ steps.meta.outputs.version }}" version dist.attestations.url
