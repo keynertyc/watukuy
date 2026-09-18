@@ -24,6 +24,8 @@ jobs:
         with:
           publish: pnpm release
           version: pnpm version
+          # Tags and GitHub releases are created manually (see RELEASING.md).
+          createGithubReleases: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
