@@ -349,7 +349,9 @@ export function afterFailure(
  * if (isDue(state, clock.now())) run();
  */
 export function isDue(state: ScheduleState, now: number): boolean {
-  if (state.nextDueAt === null || state.nextDueAt > now) return false;
+  // A `null` nextDueAt only exists on rows created by a commit that crashed before the first
+  // schedule save (PLAN §5.1 kill points K3..K5); treat it as due so the key never stalls.
+  if (state.nextDueAt !== null && state.nextDueAt > now) return false;
   if (state.throttledUntil !== null && state.throttledUntil > now) return false;
   return true;
 }
@@ -370,7 +372,7 @@ export function beginProbe(state: ScheduleState): ScheduleState {
  * clock.setTimeout(wake, timeUntilDue(state, clock.now()));
  */
 export function timeUntilDue(state: ScheduleState, now: number): number {
-  if (state.nextDueAt === null) return Number.POSITIVE_INFINITY;
+  if (state.nextDueAt === null) return 0; // unscheduled rows are due now (see isDue)
   const due = Math.max(state.nextDueAt, state.throttledUntil ?? Number.NEGATIVE_INFINITY);
   return Math.max(0, due - now);
 }

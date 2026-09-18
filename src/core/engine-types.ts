@@ -73,6 +73,8 @@ export interface TickPollResult {
 
 export interface TickResult {
   polled: TickPollResult[];
+  /** Total events delivered during this tick, including leftovers drained before any poll. */
+  delivered: number;
   /** Due keys skipped because another instance holds the lease. */
   skippedLeased: number;
   /** Keys not yet due. */

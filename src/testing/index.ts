@@ -17,6 +17,7 @@
  * @packageDocumentation
  */
 
+export * from './chaos.ts';
 export {
   FakeApi,
   type FakeApiLogEntry,

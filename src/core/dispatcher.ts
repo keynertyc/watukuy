@@ -83,15 +83,22 @@ export async function drainOutbox(
   // Groups blocked in this drain (retry pending / parked with holdKey / poison halt).
   const blocked = new Set<string>();
 
+  // The load window widens when a whole slice is held/blocked so rows behind a parked or
+  // retrying key do not starve other ordering keys.
+  let window = deps.dispatchBatchSize;
   for (;;) {
     if (signal.aborted || result.halted) break;
-    const rows = await store.loadPending(key, deps.dispatchBatchSize);
+    const rows = await store.loadPending(key, window);
     if (rows.length === 0) break;
     const held = await store.heldKeys(key);
     const groups = groupByOrderingKey(poller, rows).filter(
       (g) => !held.has(g.key) && !blocked.has(g.key),
     );
-    if (groups.length === 0) break;
+    if (groups.length === 0) {
+      if (rows.length < window || window >= deps.dispatchBatchSize * 16) break;
+      window *= 2;
+      continue;
+    }
 
     let progress = 0;
     const queue = groups.slice();

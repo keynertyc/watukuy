@@ -475,6 +475,7 @@ class WatukuyEngine<P extends PollerMap> implements Engine<P> {
         : null;
     const result: TickResult = {
       polled: [],
+      delivered: 0,
       skippedLeased: 0,
       skippedNotDue: 0,
       durationMs: 0,
@@ -500,6 +501,7 @@ class WatukuyEngine<P extends PollerMap> implements Engine<P> {
         if (r.reason === 'leased') result.skippedLeased++;
         else if (r.reason === 'not-due' || r.reason === 'paused') result.skippedNotDue++;
         result.polled.push(...r.results);
+        result.delivered += r.drainedBefore + r.results.reduce((n, p) => n + p.delivered, 0);
         if (r.reason === 'aborted') result.timedOut = true;
       }
     };

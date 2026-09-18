@@ -428,7 +428,7 @@ describe('failures and circuit', () => {
 
 describe('isDue / timeUntilDue / makeDue', () => {
   it('isDue follows nextDueAt and throttledUntil', () => {
-    expect(isDue(withInterval(1_000, { nextDueAt: null }), NOW)).toBe(false);
+    expect(isDue(withInterval(1_000, { nextDueAt: null }), NOW)).toBe(true);
     expect(isDue(withInterval(1_000, { nextDueAt: NOW + 1 }), NOW)).toBe(false);
     expect(isDue(withInterval(1_000, { nextDueAt: NOW }), NOW)).toBe(true);
     expect(isDue(withInterval(1_000, { nextDueAt: NOW - 5 }), NOW)).toBe(true);
@@ -438,11 +438,9 @@ describe('isDue / timeUntilDue / makeDue', () => {
     expect(isDue(withInterval(1_000, { nextDueAt: NOW, throttledUntil: NOW }), NOW)).toBe(true);
   });
 
-  it('timeUntilDue is 0 when due, Infinity when unscheduled, else the remaining wait', () => {
+  it('timeUntilDue is 0 when due or unscheduled, else the remaining wait', () => {
     expect(timeUntilDue(withInterval(1_000, { nextDueAt: NOW - 10 }), NOW)).toBe(0);
-    expect(timeUntilDue(withInterval(1_000, { nextDueAt: null }), NOW)).toBe(
-      Number.POSITIVE_INFINITY,
-    );
+    expect(timeUntilDue(withInterval(1_000, { nextDueAt: null }), NOW)).toBe(0);
     expect(timeUntilDue(withInterval(1_000, { nextDueAt: NOW + 2_500 }), NOW)).toBe(2_500);
     expect(
       timeUntilDue(withInterval(1_000, { nextDueAt: NOW + 100, throttledUntil: NOW + 900 }), NOW),

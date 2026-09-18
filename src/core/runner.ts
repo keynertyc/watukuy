@@ -75,6 +75,8 @@ export interface RunKeyResult {
   /** Earliest pending delivery retry, if any. */
   nextRetryAt: number | null;
   leaseLost: boolean;
+  /** Events delivered by the outbox drain that runs before any lane (leftovers from a crash). */
+  drainedBefore: number;
 }
 
 function nowIso(ms: number): string {
@@ -129,6 +131,7 @@ export async function runKey(deps: RunnerDeps, opts: RunKeyOptions): Promise<Run
     state: null,
     nextRetryAt: null,
     leaseLost: false,
+    drainedBefore: 0,
   };
   const now0 = clock.now();
 
@@ -189,6 +192,7 @@ export async function runKey(deps: RunnerDeps, opts: RunKeyOptions): Promise<Run
     // 1. Drain what a previous crash left behind (G1/G9).
     const drained = await drainOutbox(deps, lease, deps.consumer, abort.signal);
     noteRetry(out, drained);
+    out.drainedBefore = drained.delivered;
     if (drained.halted) {
       state = await openCircuitForHalt(cycleDeps, state);
     }
@@ -471,8 +475,11 @@ async function runCycle(
           ...(lane === 'reconcile' ? { lastRunAt: laneState.lastRunAt ?? null, done: false } : {}),
         };
         const batch: CommitBatch = {
+          // The schedule travels with every commit so a crash before the end-of-cycle save never
+          // leaves a row without a due time (chaos regression: first-cycle crash stalled the key).
           statePatch: {
             lanes: persistLane(laneNext),
+            schedule: state.schedule,
             sequence,
             schemaVersion: poller.schemaVersion,
             updatedAt: clock.now(),
@@ -562,7 +569,7 @@ async function runCycle(
           );
         }
         const batch: CommitBatch = {
-          statePatch: { sequence, updatedAt: clock.now() },
+          statePatch: { schedule: state.schedule, sequence, updatedAt: clock.now() },
           upserts: [],
           deletes: missing,
           events,
