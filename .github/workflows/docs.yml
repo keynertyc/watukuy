@@ -57,7 +57,7 @@ jobs:
           set -e
           node scripts/make-badges.mjs /tmp/ci-coverage/coverage-summary.json /tmp/ci-size/size-limit.json docs-site/dist/badges
           cat docs-site/dist/badges/coverage.json docs-site/dist/badges/size.json
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with: { path: docs-site/dist }
   deploy:
     name: deploy to GitHub Pages
