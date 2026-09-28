@@ -276,7 +276,7 @@ importers:
     dependencies:
       bullmq:
         specifier: ^6.3.7
-        version: 6.3.7(ioredis@6.0.0(supports-color@7.2.0))(pg@8.23.0)(redis@6.2.1(@opentelemetry/api@1.9.1))
+        version: 6.3.8(ioredis@6.0.0(supports-color@7.2.0))(pg@8.23.0)(redis@6.2.1(@opentelemetry/api@1.9.1))
       watukuy:
         specifier: workspace:*
         version: link:../..
@@ -2556,8 +2556,8 @@ packages:
     resolution: {integrity: sha512-lHblz4ahamxpTmnsk+MNTRWsjYKv965MwOrSJyeD588rR3Jcu7swE+0wN5F+PbL5cjgu/9ObkhfzEPuofEMwLA==}
     engines: {node: '>=10.0.0'}
 
-  bullmq@6.3.7:
-    resolution: {integrity: sha512-Jk8pv/N2RuhZCmyDQBvUtGqgMzUQCPeiFaZBT0QyWrIcJiQJ/eRB5QdDmpmhc0OPnGF/qW3zC4U1br66wTUj3Q==}
+  bullmq@6.3.8:
+    resolution: {integrity: sha512-09zcOQ1uycyCK2C9iY2Pm+/JPa/gIXiZqGBUiIlO1v3VshwBgarmAgWRTWDL/IAvI8NFE1zqrkdKFgRfXHHM5A==}
     engines: {node: '>=14.17.0'}
     peerDependencies:
       bullmq-otel: '>=2.0.0'
@@ -6964,7 +6964,7 @@ snapshots:
   buildcheck@0.0.7:
     optional: true
 
-  bullmq@6.3.7(ioredis@6.0.0(supports-color@7.2.0))(pg@8.23.0)(redis@6.2.1(@opentelemetry/api@1.9.1)):
+  bullmq@6.3.8(ioredis@6.0.0(supports-color@7.2.0))(pg@8.23.0)(redis@6.2.1(@opentelemetry/api@1.9.1)):
     dependencies:
       cron-parser: 5.10.1
       msgpackr: 2.1.0
